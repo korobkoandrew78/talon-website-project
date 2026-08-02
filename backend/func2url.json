@@ -1,4 +1,5 @@
 {
+  "client-accounts": "https://functions.poehali.dev/35f66a2f-1ab1-4ba2-b52b-2fc1d8be4adf",
   "fuel-card-operations": "https://functions.poehali.dev/05013acd-2303-4bd8-9da7-a340ab066f3c",
   "stations": "https://functions.poehali.dev/9116938c-7dfb-4766-8266-c9a2df035e47",
   "discount-cards": "https://functions.poehali.dev/08c90c97-dcbb-404b-b4e2-cc4a93b5007a",

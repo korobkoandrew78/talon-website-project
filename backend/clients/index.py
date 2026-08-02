@@ -47,31 +47,27 @@ def get_session(cur, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     token = get_header(event, 'X-Auth-Token')
     if not token:
         return None
-    cur.execute('SELECT role, user_id, expires_at FROM sessions WHERE token = %s', (token,))
+    cur.execute('SELECT role, user_id, account_id, expires_at FROM sessions WHERE token = %s', (token,))
     session = cur.fetchone()
     if not session or session['expires_at'] < datetime.utcnow():
         return None
     return session
 
 
-def client_row_to_json(c: Dict[str, Any], include_password: bool = True) -> Dict[str, Any]:
-    out = {
+def client_row_to_json(c: Dict[str, Any]) -> Dict[str, Any]:
+    return {
         'id': str(c['id']),
         'inn': c['inn'],
         'name': c['name'],
         'phone': c['phone'],
         'email': c['email'],
-        'login': c['login'],
-        'readOnly': c['read_only'],
-        'sections': c['sections'],
     }
-    if include_password and 'password' in c:
-        out['password'] = c['password']
-    return out
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    '''Business: CRUD клиентов для менеджера, самопросмотр для клиента.
+    '''Business: CRUD клиентов (компаний) для менеджера, самопросмотр реквизитов для клиента.
+    Учётные данные для входа (логин/пароль/доступ) хранятся отдельно в client_accounts —
+    у одной компании может быть несколько учётных записей.
     Args: event с httpMethod, body, headers, queryStringParameters; context с request_id.
     Returns: HTTP JSON ответ со списком/объектом клиента либо ошибкой.
     '''
@@ -91,18 +87,18 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         params = event.get('queryStringParameters') or {}
 
-        # Клиент смотрит только себя
+        # Клиент смотрит только реквизиты своей компании
         if method == 'GET' and params.get('self') == '1':
             if session['role'] != 'client':
                 return response(403, {'error': 'Доступ запрещён'})
             cur.execute(
-                'SELECT id, inn, name, phone, email, login, read_only, sections FROM clients WHERE id = %s',
+                'SELECT id, inn, name, phone, email FROM clients WHERE id = %s',
                 (session['user_id'],),
             )
             c = cur.fetchone()
             if not c:
                 return response(404, {'error': 'Клиент не найден'})
-            return response(200, client_row_to_json(c, include_password=False))
+            return response(200, client_row_to_json(c))
 
         # Остальные операции — только для менеджера
         if session['role'] != 'manager':
@@ -136,7 +132,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             total = cur.fetchone()['cnt']
 
             cur.execute(
-                f'SELECT id, inn, name, phone, email, login, password, read_only, sections FROM clients '
+                f'SELECT id, inn, name, phone, email FROM clients '
                 f'{where_sql} ORDER BY id LIMIT %s OFFSET %s',
                 args + [limit, offset],
             )
@@ -155,19 +151,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             name = (body_data.get('name') or '').strip()
             phone = body_data.get('phone') or ''
             email = body_data.get('email') or ''
-            login = (body_data.get('login') or '').strip()
-            password = body_data.get('password') or ''
-            read_only = bool(body_data.get('readOnly', False))
-            sections = body_data.get('sections') or []
 
-            if not inn or not name or not login:
-                return response(400, {'error': 'Укажите ИНН, наименование и логин'})
+            if not inn or not name:
+                return response(400, {'error': 'Укажите ИНН и наименование'})
 
             cur.execute(
-                'INSERT INTO clients (inn, name, phone, email, login, password, read_only, sections) '
-                'VALUES (%s, %s, %s, %s, %s, %s, %s, %s) '
-                'RETURNING id, inn, name, phone, email, login, password, read_only, sections',
-                (inn, name, phone, email, login, password, read_only, sections),
+                'INSERT INTO clients (inn, name, phone, email) '
+                'VALUES (%s, %s, %s, %s) '
+                'RETURNING id, inn, name, phone, email',
+                (inn, name, phone, email),
             )
             c = cur.fetchone()
             return response(201, client_row_to_json(c))
@@ -182,15 +174,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             name = (body_data.get('name') or '').strip()
             phone = body_data.get('phone') or ''
             email = body_data.get('email') or ''
-            login = (body_data.get('login') or '').strip()
-            password = body_data.get('password') or ''
-            read_only = bool(body_data.get('readOnly', False))
-            sections = body_data.get('sections') or []
 
             cur.execute(
-                'UPDATE clients SET inn=%s, name=%s, phone=%s, email=%s, login=%s, password=%s, read_only=%s, sections=%s '
-                'WHERE id=%s RETURNING id, inn, name, phone, email, login, password, read_only, sections',
-                (inn, name, phone, email, login, password, read_only, sections, cid),
+                'UPDATE clients SET inn=%s, name=%s, phone=%s, email=%s '
+                'WHERE id=%s RETURNING id, inn, name, phone, email',
+                (inn, name, phone, email, cid),
             )
             c = cur.fetchone()
             if not c:

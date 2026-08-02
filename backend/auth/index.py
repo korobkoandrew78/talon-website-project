@@ -49,6 +49,9 @@ def response(status: int, body: Dict[str, Any]):
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     '''Business: аутентификация admin/manager/client, выдача и проверка токенов сессии.
+    У клиента (компании) может быть несколько учётных записей (client_accounts) —
+    сессия хранит user_id = id компании (clients.id) для скоупинга данных,
+    и account_id = id учётной записи (client_accounts.id) для логина/прав доступа.
     Args: event с httpMethod, body, headers, queryStringParameters; context с request_id.
     Returns: HTTP JSON ответ с токеном/пользователем либо ошибкой.
     '''
@@ -72,11 +75,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
             role = None
             user_id = None
+            account_id = None
             user_payload: Dict[str, Any] = {}
 
             if login == ADMIN_LOGIN and password == ADMIN_PASSWORD:
                 role = 'admin'
-                user_id = None
                 user_payload = {'login': ADMIN_LOGIN}
             else:
                 cur.execute(
@@ -101,23 +104,26 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                     }
                 else:
                     cur.execute(
-                        'SELECT id, inn, name, phone, email, login, password, read_only, sections '
-                        'FROM clients WHERE login = %s',
+                        'SELECT a.id AS account_id, a.login, a.password, a.read_only, a.sections, '
+                        'c.id AS client_id, c.inn, c.name, c.phone, c.email '
+                        'FROM client_accounts a JOIN clients c ON c.id = a.client_id '
+                        'WHERE a.login = %s',
                         (login,),
                     )
-                    client = cur.fetchone()
-                    if client and client['password'] == password:
+                    account = cur.fetchone()
+                    if account and account['password'] == password:
                         role = 'client'
-                        user_id = client['id']
+                        user_id = account['client_id']
+                        account_id = account['account_id']
                         user_payload = {
-                            'id': str(client['id']),
-                            'inn': client['inn'],
-                            'name': client['name'],
-                            'phone': client['phone'],
-                            'email': client['email'],
-                            'login': client['login'],
-                            'readOnly': client['read_only'],
-                            'sections': client['sections'],
+                            'id': str(account['client_id']),
+                            'inn': account['inn'],
+                            'name': account['name'],
+                            'phone': account['phone'],
+                            'email': account['email'],
+                            'login': account['login'],
+                            'readOnly': account['read_only'],
+                            'sections': account['sections'],
                         }
 
             if role is None:
@@ -126,8 +132,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             token = secrets.token_hex(32)
             expires_at = datetime.utcnow() + timedelta(days=7)
             cur.execute(
-                'INSERT INTO sessions (token, role, user_id, expires_at) VALUES (%s, %s, %s, %s)',
-                (token, role, user_id, expires_at),
+                'INSERT INTO sessions (token, role, user_id, account_id, expires_at) VALUES (%s, %s, %s, %s, %s)',
+                (token, role, user_id, account_id, expires_at),
             )
 
             return response(200, {'token': token, 'role': role, 'user': user_payload})
@@ -138,7 +144,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return response(401, {'error': 'Не авторизован'})
 
             cur.execute(
-                'SELECT role, user_id, expires_at FROM sessions WHERE token = %s',
+                'SELECT role, user_id, account_id, expires_at FROM sessions WHERE token = %s',
                 (token,),
             )
             session = cur.fetchone()
@@ -147,6 +153,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
             role = session['role']
             user_id = session['user_id']
+            account_id = session['account_id']
             user_payload: Dict[str, Any] = {}
 
             if role == 'admin':
@@ -171,15 +178,17 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 }
             elif role == 'client':
                 cur.execute(
-                    'SELECT id, inn, name, phone, email, login, read_only, sections '
-                    'FROM clients WHERE id = %s',
-                    (user_id,),
+                    'SELECT a.id AS account_id, a.login, a.read_only, a.sections, '
+                    'c.id AS client_id, c.inn, c.name, c.phone, c.email '
+                    'FROM client_accounts a JOIN clients c ON c.id = a.client_id '
+                    'WHERE a.id = %s',
+                    (account_id,),
                 )
                 c = cur.fetchone()
                 if not c:
                     return response(401, {'error': 'Пользователь не найден'})
                 user_payload = {
-                    'id': str(c['id']),
+                    'id': str(c['client_id']),
                     'inn': c['inn'],
                     'name': c['name'],
                     'phone': c['phone'],

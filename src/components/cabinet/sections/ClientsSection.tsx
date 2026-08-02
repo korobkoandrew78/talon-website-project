@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
 import { ApiError } from '@/lib/api';
-import { Client, ClientSection as CS } from '@/lib/cabinet';
+import { Client, ClientAccount, ClientSection as CS } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls, SwitchRow } from '@/components/cabinet/Field';
@@ -30,6 +30,11 @@ const empty = (): Client => ({
   name: '',
   phone: '',
   email: '',
+});
+
+const emptyAccount = (clientId: string): ClientAccount => ({
+  id: '',
+  clientId,
   login: '',
   password: '',
   readOnly: false,
@@ -37,13 +42,31 @@ const empty = (): Client => ({
 });
 
 const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
-  const { clients, loadingClients, createClient, updateClient, deleteClient } = useStore();
+  const {
+    clients,
+    loadingClients,
+    createClient,
+    updateClient,
+    deleteClient,
+    fetchClientAccounts,
+    createClientAccount,
+    updateClientAccount,
+    deleteClientAccount,
+  } = useStore();
+
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Client>(empty());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
   const [fInn, setFInn] = useState('');
   const [fName, setFName] = useState('');
+
+  const [accounts, setAccounts] = useState<ClientAccount[]>([]);
+  const [accountsLoading, setAccountsLoading] = useState(false);
+  const [accountOpen, setAccountOpen] = useState(false);
+  const [accountDraft, setAccountDraft] = useState<ClientAccount>(emptyAccount(''));
+  const [accountSaving, setAccountSaving] = useState(false);
+  const [accountError, setAccountError] = useState('');
 
   const filtered = useMemo(
     () =>
@@ -56,14 +79,29 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
   );
   const { page, setPage, pageCount, pageItems } = usePagination(filtered);
 
+  const loadAccounts = async (clientId: string) => {
+    setAccountsLoading(true);
+    try {
+      const items = await fetchClientAccounts(clientId);
+      setAccounts(items);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось загрузить учётные записи');
+    } finally {
+      setAccountsLoading(false);
+    }
+  };
+
   const edit = (c: Client) => {
     setDraft({ ...c });
     setFormError('');
+    setAccounts([]);
     setOpen(true);
+    loadAccounts(c.id);
   };
   const create = () => {
     setDraft(empty());
     setFormError('');
+    setAccounts([]);
     setOpen(true);
   };
   const save = async () => {
@@ -72,9 +110,13 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
     setFormError('');
     try {
       const { id, ...data } = draft;
-      if (id) await updateClient(id, data);
-      else await createClient(data);
-      setOpen(false);
+      if (id) {
+        await updateClient(id, data);
+      } else {
+        const c = await createClient(data);
+        setDraft(c);
+        setAccounts([]);
+      }
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Не удалось сохранить клиента');
     } finally {
@@ -86,6 +128,44 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       await deleteClient(id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить клиента');
+    }
+  };
+
+  const openAccountCreate = () => {
+    setAccountDraft(emptyAccount(draft.id));
+    setAccountError('');
+    setAccountOpen(true);
+  };
+  const openAccountEdit = (a: ClientAccount) => {
+    setAccountDraft({ ...a });
+    setAccountError('');
+    setAccountOpen(true);
+  };
+  const saveAccount = async () => {
+    if (!accountDraft.login.trim() || !accountDraft.password.trim()) {
+      setAccountError('Укажите логин и пароль');
+      return;
+    }
+    setAccountSaving(true);
+    setAccountError('');
+    try {
+      const { id, ...data } = accountDraft;
+      if (id) await updateClientAccount(id, data);
+      else await createClientAccount(data);
+      setAccountOpen(false);
+      await loadAccounts(draft.id);
+    } catch (e) {
+      setAccountError(e instanceof ApiError ? e.message : 'Не удалось сохранить учётную запись');
+    } finally {
+      setAccountSaving(false);
+    }
+  };
+  const removeAccount = async (id: string) => {
+    try {
+      await deleteClientAccount(id);
+      await loadAccounts(draft.id);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить учётную запись');
     }
   };
 
@@ -127,8 +207,6 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                 <Th>Наименование</Th>
                 <Th>Телефон</Th>
                 <Th>Почта</Th>
-                <Th>Только просмотр</Th>
-                <Th>Разделы</Th>
                 {!readOnly && <Th right>Действия</Th>}
               </tr>
             </thead>
@@ -139,8 +217,6 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                   <td className="px-4 py-3 font-medium">{c.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{c.phone}</td>
                   <td className="px-4 py-3 text-muted-foreground">{c.email}</td>
-                  <td className="px-4 py-3">{c.readOnly ? 'Да' : 'Нет'}</td>
-                  <td className="px-4 py-3"><SectionIcons keys={c.sections} /></td>
                   {!readOnly && (
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
@@ -153,7 +229,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
               ))}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
                     {loadingClients ? 'Загрузка…' : 'Нет записей'}
                   </td>
                 </tr>
@@ -165,7 +241,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       </TableCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent key={draft.id || 'new'} className="max-h-[85vh] max-w-md overflow-y-auto">
+        <DialogContent key={draft.id || 'new'} className="max-h-[85vh] max-w-lg overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{draft.id ? 'Изменить клиента' : 'Новый клиент'}</DialogTitle>
           </DialogHeader>
@@ -184,42 +260,132 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
             <Field label="Почта">
               <input className={inputCls} value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
             </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label="Логин">
-                <input className={inputCls} value={draft.login} onChange={(e) => setDraft({ ...draft, login: e.target.value })} />
-              </Field>
-              <Field label="Пароль">
-                <input className={inputCls} value={draft.password} onChange={(e) => setDraft({ ...draft, password: e.target.value })} />
-              </Field>
-            </div>
-            <SwitchRow
-              label="Режим «только просмотр»"
-              checked={draft.readOnly}
-              onChange={(v) => setDraft({ ...draft, readOnly: v })}
-            />
-            <Field label="Доступные разделы">
-              <SectionPicker
-                options={CLIENT_SECTION_OPTIONS}
-                value={draft.sections}
-                onChange={(v) => setDraft({ ...draft, sections: v as CS[] })}
-              />
-            </Field>
             {formError && (
               <p className="flex items-center gap-2 text-sm text-accent">
                 <Icon name="TriangleAlert" size={15} /> {formError}
               </p>
             )}
+
+            <div className="rounded-xl border border-border p-3">
+              <div className="mb-2 flex items-center justify-between">
+                <span className="text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">
+                  Учётные записи для входа
+                </span>
+                {!readOnly && draft.id && (
+                  <button
+                    onClick={openAccountCreate}
+                    className="flex items-center gap-1.5 rounded-full border border-border px-3 py-1.5 text-xs hover:bg-secondary"
+                  >
+                    <Icon name="Plus" size={13} /> Добавить
+                  </button>
+                )}
+              </div>
+
+              {!draft.id && (
+                <p className="text-xs text-muted-foreground">
+                  Сначала сохраните клиента — после этого можно будет добавить учётные записи.
+                </p>
+              )}
+
+              {draft.id && (
+                <div className="space-y-2">
+                  {accountsLoading && <p className="text-xs text-muted-foreground">Загрузка…</p>}
+                  {!accountsLoading && accounts.length === 0 && (
+                    <p className="text-xs text-muted-foreground">Учётных записей пока нет</p>
+                  )}
+                  {accounts.map((a) => (
+                    <div
+                      key={a.id}
+                      className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-secondary/50 px-3 py-2"
+                    >
+                      <div className="flex items-center gap-2 text-sm">
+                        <span className="font-medium">{a.login}</span>
+                        {a.readOnly && (
+                          <span className="rounded-full bg-secondary px-2 py-0.5 text-[0.65rem] text-muted-foreground">
+                            только просмотр
+                          </span>
+                        )}
+                        <SectionIcons keys={a.sections} />
+                      </div>
+                      {!readOnly && (
+                        <div className="flex gap-1.5">
+                          <RowAction icon="Pencil" label="Изменить" onClick={() => openAccountEdit(a)} />
+                          <RowAction icon="Trash2" label="Удалить" danger onClick={() => removeAccount(a.id)} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
           </div>
           <DialogFooter>
             <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">
+              {draft.id ? 'Закрыть' : 'Отмена'}
+            </button>
+            {!readOnly && (
+              <button
+                onClick={save}
+                disabled={saving}
+                className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                {saving ? 'Сохранение…' : draft.id ? 'Сохранить' : 'Создать'}
+              </button>
+            )}
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={accountOpen} onOpenChange={setAccountOpen}>
+        <DialogContent key={accountDraft.id || 'new-account'} className="max-w-md">
+          <DialogHeader>
+            <DialogTitle>{accountDraft.id ? 'Изменить учётную запись' : 'Новая учётная запись'}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-1">
+            <div className="grid grid-cols-2 gap-4">
+              <Field label="Логин">
+                <input
+                  className={inputCls}
+                  value={accountDraft.login}
+                  onChange={(e) => setAccountDraft({ ...accountDraft, login: e.target.value })}
+                />
+              </Field>
+              <Field label="Пароль">
+                <input
+                  className={inputCls}
+                  value={accountDraft.password}
+                  onChange={(e) => setAccountDraft({ ...accountDraft, password: e.target.value })}
+                />
+              </Field>
+            </div>
+            <SwitchRow
+              label="Режим «только просмотр»"
+              checked={accountDraft.readOnly}
+              onChange={(v) => setAccountDraft({ ...accountDraft, readOnly: v })}
+            />
+            <Field label="Доступные разделы">
+              <SectionPicker
+                options={CLIENT_SECTION_OPTIONS}
+                value={accountDraft.sections}
+                onChange={(v) => setAccountDraft({ ...accountDraft, sections: v as CS[] })}
+              />
+            </Field>
+            {accountError && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {accountError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <button onClick={() => setAccountOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">
               Отмена
             </button>
             <button
-              onClick={save}
-              disabled={saving}
+              onClick={saveAccount}
+              disabled={accountSaving}
               className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? 'Сохранение…' : 'Сохранить'}
+              {accountSaving ? 'Сохранение…' : 'Сохранить'}
             </button>
           </DialogFooter>
         </DialogContent>

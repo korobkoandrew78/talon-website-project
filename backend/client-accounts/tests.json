@@ -1,0 +1,28 @@
+{
+  "testCases": [
+    {
+      "name": "CORS preflight",
+      "method": "OPTIONS",
+      "headers": {},
+      "queryStringParameters": {},
+      "body": null,
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET without token returns 401",
+      "method": "GET",
+      "headers": {},
+      "queryStringParameters": {"client_id": "1"},
+      "body": null,
+      "expectedStatus": 401
+    },
+    {
+      "name": "POST without token returns 401",
+      "method": "POST",
+      "headers": {"Content-Type": "application/json"},
+      "queryStringParameters": {},
+      "body": "{\"clientId\": \"1\", \"login\": \"test\", \"password\": \"test\"}",
+      "expectedStatus": 401
+    }
+  ]
+}

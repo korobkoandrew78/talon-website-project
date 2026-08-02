@@ -11,6 +11,7 @@ import {
   FuelType,
   Station,
   Client,
+  ClientAccount,
   FuelCard,
   DiscountCard,
   Coupon,
@@ -67,6 +68,11 @@ interface Store {
   createClient: (data: Omit<Client, 'id'>) => Promise<Client>;
   updateClient: (id: string, data: Omit<Client, 'id'>) => Promise<Client>;
   deleteClient: (id: string) => Promise<void>;
+
+  fetchClientAccounts: (clientId: string) => Promise<ClientAccount[]>;
+  createClientAccount: (data: Omit<ClientAccount, 'id'>) => Promise<ClientAccount>;
+  updateClientAccount: (id: string, data: Omit<ClientAccount, 'id'>) => Promise<ClientAccount>;
+  deleteClientAccount: (id: string) => Promise<void>;
 
   createFuelType: (data: Omit<FuelType, 'id'>) => Promise<FuelType>;
   updateFuelType: (id: string, data: Omit<FuelType, 'id'>) => Promise<FuelType>;
@@ -323,6 +329,27 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     await refreshClients();
   }, [refreshClients]);
 
+  // ——— Учётные записи клиента ———
+
+  const fetchClientAccounts = useCallback(async (clientId: string) => {
+    const res = await api<{ items: ClientAccount[] }>('client-accounts', {
+      query: { client_id: clientId },
+    });
+    return res.items;
+  }, []);
+
+  const createClientAccount = useCallback(async (data: Omit<ClientAccount, 'id'>) => {
+    return api<ClientAccount>('client-accounts', { method: 'POST', body: data });
+  }, []);
+
+  const updateClientAccount = useCallback(async (id: string, data: Omit<ClientAccount, 'id'>) => {
+    return api<ClientAccount>('client-accounts', { method: 'PUT', body: { id, ...data } });
+  }, []);
+
+  const deleteClientAccount = useCallback(async (id: string) => {
+    await api('client-accounts', { method: 'DELETE', query: { id } });
+  }, []);
+
   // ——— Виды топлива ———
 
   const createFuelType = useCallback(async (data: Omit<FuelType, 'id'>) => {
@@ -514,6 +541,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         createClient,
         updateClient,
         deleteClient,
+
+        fetchClientAccounts,
+        createClientAccount,
+        updateClientAccount,
+        deleteClientAccount,
 
         createFuelType,
         updateFuelType,
