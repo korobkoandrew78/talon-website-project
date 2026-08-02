@@ -453,20 +453,24 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
       <Dialog open={mode === 'move'} onOpenChange={(o) => !o && setMode(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Переместить топливо · {cardNumber(draft)}</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon name="ArrowLeftRight" size={18} className="text-accent" />
+              Перемещение топлива между картами
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <div className="rounded-xl border border-border bg-secondary/40 px-3.5 py-2.5 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Вид топлива</span>
-                <span className="font-medium">{fuelName(draft.fuelTypeId)}</span>
-              </div>
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-muted-foreground">Остаток на карте</span>
-                <span className="font-medium">{draft.balance.toLocaleString('ru-RU')} {fuelUnit(draft.fuelTypeId)}</span>
+            <div className="rounded-xl border border-accent/50 bg-accent/5 px-4 py-3">
+              <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Карта-источник (списание)</div>
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span className="font-mono text-lg font-bold text-accent">{cardNumber(draft)}</span>
+                <span className="text-sm text-muted-foreground">{clientName(draft.clientId)}</span>
+                <span className="text-sm font-medium">{fuelName(draft.fuelTypeId)}</span>
+                <span className="text-lg font-bold text-primary">
+                  {draft.balance.toLocaleString('ru-RU', { minimumFractionDigits: 3 })} {fuelUnit(draft.fuelTypeId)}
+                </span>
               </div>
             </div>
-            <Field label="На карту клиента">
+            <Field label="Карта-назначение (оприходование)">
               <select
                 className={inputCls}
                 value={targetId}
@@ -475,20 +479,26 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                   setToAmount(0);
                 }}
               >
-                <option value="">Выберите карту</option>
+                <option value="">Выберите карту назначения</option>
                 {moveTargets.map((c) => (
-                  <option key={c.id} value={c.id}>{cardNumber(c)} · {fuelName(c.fuelTypeId)}</option>
+                  <option key={c.id} value={c.id}>{cardNumber(c)} · {clientName(c.clientId)} · {fuelName(c.fuelTypeId)}</option>
                 ))}
               </select>
             </Field>
-            <Field label={`Количество к списанию, ${fuelUnit(draft.fuelTypeId)}`}>
-              <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
-            </Field>
-            {isDifferentFuel && (
-              <Field label={`Количество к получению, ${fuelUnit(targetCard!.fuelTypeId)}`}>
-                <input type="number" className={inputCls} value={toAmount} onChange={(e) => setToAmount(Number(e.target.value))} />
+            <div className="grid grid-cols-2 gap-4">
+              <Field label={`Списать (${fuelName(draft.fuelTypeId)}), ${fuelUnit(draft.fuelTypeId)}`}>
+                <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
               </Field>
-            )}
+              <Field label={`Оприходовать ${targetCard ? `(${fuelName(targetCard.fuelTypeId)})` : ''}, ${targetCard ? fuelUnit(targetCard.fuelTypeId) : ''}`}>
+                <input
+                  type="number"
+                  className={inputCls}
+                  value={isDifferentFuel ? toAmount : amount}
+                  disabled={!isDifferentFuel}
+                  onChange={(e) => setToAmount(Number(e.target.value))}
+                />
+              </Field>
+            </div>
             {formError && mode === 'move' && (
               <p className="flex items-center gap-2 text-sm text-accent">
                 <Icon name="TriangleAlert" size={15} /> {formError}
@@ -496,12 +506,14 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
             )}
           </div>
           <DialogFooter>
-            <button onClick={() => setMode(null)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
+            <button onClick={() => setMode(null)} className="flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">
+              <Icon name="X" size={15} /> Отмена
+            </button>
             <button
               onClick={requestMove}
-              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground"
+              className="flex items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground"
             >
-              Переместить
+              <Icon name="ArrowRight" size={15} /> Далее
             </button>
           </DialogFooter>
         </DialogContent>
@@ -511,27 +523,66 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
       <Dialog open={moveConfirmOpen} onOpenChange={(o) => !o && setMoveConfirmOpen(false)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Подтвердите перемещение</DialogTitle>
+            <DialogTitle className="flex items-center gap-2">
+              <Icon name="TriangleAlert" size={18} className="text-accent" />
+              Подтвердите перемещение
+            </DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-2 text-sm">
-            <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
-              <span className="text-muted-foreground">С карты</span>
-              <span className="font-medium">{cardNumber(draft)}</span>
+          <div className="space-y-3 py-2">
+            <div className="rounded-xl border border-accent/50 bg-accent/5 px-4 py-3">
+              <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Списание с карты</div>
+              <div className="flex items-center justify-between">
+                <span className="font-mono text-lg font-bold text-accent">{cardNumber(draft)}</span>
+                <span className="text-sm text-muted-foreground">{clientName(draft.clientId)}</span>
+              </div>
+              <div className="mt-2 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Вид топлива:</span>
+                <span className="font-semibold">{fuelName(draft.fuelTypeId)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Объём списания:</span>
+                <span className="font-bold text-destructive">
+                  −{amount.toLocaleString('ru-RU', { minimumFractionDigits: 3 })} {fuelUnit(draft.fuelTypeId)}
+                </span>
+              </div>
+              <div className="mt-1 flex items-center justify-between text-sm">
+                <span className="text-muted-foreground">Баланс после:</span>
+                <span className="text-muted-foreground">
+                  {(draft.balance - amount).toLocaleString('ru-RU', { minimumFractionDigits: 3 })} {fuelUnit(draft.fuelTypeId)}
+                </span>
+              </div>
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
-              <span className="text-muted-foreground">На карту</span>
-              <span className="font-medium">{targetCard ? cardNumber(targetCard) : '—'}</span>
+
+            <div className="flex justify-center">
+              <Icon name="ArrowDown" size={20} className="text-accent" />
             </div>
-            <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
-              <span className="text-muted-foreground">Топливо к списанию</span>
-              <span className="font-medium">{fuelName(draft.fuelTypeId)} · {amount.toLocaleString('ru-RU')} {fuelUnit(draft.fuelTypeId)}</span>
-            </div>
-            {isDifferentFuel && targetCard && (
-              <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
-                <span className="text-muted-foreground">Топливо к получению</span>
-                <span className="font-medium">{fuelName(targetCard.fuelTypeId)} · {toAmount.toLocaleString('ru-RU')} {fuelUnit(targetCard.fuelTypeId)}</span>
+
+            {targetCard && (
+              <div className="rounded-xl border border-primary/50 bg-primary/5 px-4 py-3">
+                <div className="mb-2 text-xs uppercase tracking-wide text-muted-foreground">Оприходование на карту</div>
+                <div className="flex items-center justify-between">
+                  <span className="font-mono text-lg font-bold text-primary">{cardNumber(targetCard)}</span>
+                  <span className="text-sm text-muted-foreground">{clientName(targetCard.clientId)}</span>
+                </div>
+                <div className="mt-2 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Вид топлива:</span>
+                  <span className="font-semibold">{fuelName(targetCard.fuelTypeId)}</span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Объём оприходования:</span>
+                  <span className="font-bold text-primary">
+                    +{(isDifferentFuel ? toAmount : amount).toLocaleString('ru-RU', { minimumFractionDigits: 3 })} {fuelUnit(targetCard.fuelTypeId)}
+                  </span>
+                </div>
+                <div className="mt-1 flex items-center justify-between text-sm">
+                  <span className="text-muted-foreground">Баланс после:</span>
+                  <span className="text-muted-foreground">
+                    {(targetCard.balance + (isDifferentFuel ? toAmount : amount)).toLocaleString('ru-RU', { minimumFractionDigits: 3 })} {fuelUnit(targetCard.fuelTypeId)}
+                  </span>
+                </div>
               </div>
             )}
+
             {formError && (
               <p className="flex items-center gap-2 text-sm text-accent">
                 <Icon name="TriangleAlert" size={15} /> {formError}
@@ -539,13 +590,18 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
             )}
           </div>
           <DialogFooter>
-            <button onClick={() => setMoveConfirmOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
+            <button
+              onClick={() => setMoveConfirmOpen(false)}
+              className="flex items-center gap-1.5 rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary"
+            >
+              <Icon name="ChevronLeft" size={15} /> Назад
+            </button>
             <button
               onClick={doMove}
               disabled={saving}
-              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+              className="flex items-center gap-1.5 rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? 'Перемещение…' : 'Подтвердить'}
+              <Icon name="CircleCheck" size={15} /> {saving ? 'Перемещение…' : 'Подтвердить'}
             </button>
           </DialogFooter>
         </DialogContent>
