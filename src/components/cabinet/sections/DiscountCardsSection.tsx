@@ -75,7 +75,7 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
     <>
       <SectionHeader
         subtitle="Раздел"
-        title="Дисконтные карты"
+        title="Бонусные карты"
         action={!readOnly && <AddButton label="Новая карта" onClick={create} />}
       />
       <TableCard>
@@ -125,7 +125,7 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
       <Dialog open={open} onOpenChange={setOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>{draft.id ? 'Изменить карту' : 'Новая дисконтная карта'}</DialogTitle>
+            <DialogTitle>{draft.id ? 'Изменить карту' : 'Новая бонусная карта'}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
             <Field label="Номер карты">

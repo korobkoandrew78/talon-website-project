@@ -18,7 +18,7 @@ export const SECTIONS: SectionMeta[] = [
   { key: 'fuel', label: 'Виды топлива', icon: 'Fuel' },
   { key: 'clients', label: 'Клиенты', icon: 'Users' },
   { key: 'fuelCards', label: 'Топливные карты', icon: 'CreditCard' },
-  { key: 'discountCards', label: 'Дисконтные карты', icon: 'BadgePercent' },
+  { key: 'discountCards', label: 'Бонусные карты', icon: 'BadgePercent' },
   { key: 'coupons', label: 'Талоны', icon: 'Ticket' },
 ];
 
