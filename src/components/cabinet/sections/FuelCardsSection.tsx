@@ -34,6 +34,7 @@ const emptyCard = (): FuelCard => ({
   fuelTypeId: '',
   clientId: '',
   balance: 0,
+  price: 0,
   status: 'active',
   blockReason: '',
   dailyLimit: 0,
@@ -153,6 +154,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
           client_id: draft.clientId,
           daily_limit: draft.dailyLimit,
           balance: draft.balance,
+          price: draft.price,
           code,
           idx: draft.index,
         });
@@ -163,6 +165,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
           fuel_type_id: draft.fuelTypeId,
           client_id: draft.clientId,
           daily_limit: draft.dailyLimit,
+          price: draft.price,
         });
       }
       setMode(null);
@@ -288,6 +291,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                 {!clientId && <Th>Клиент</Th>}
                 <Th>Топливо</Th>
                 <Th>Баланс</Th>
+                <Th>Цена</Th>
                 <Th>Лимит/день</Th>
                 <Th>Статус</Th>
                 <Th>Активация</Th>
@@ -310,6 +314,9 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                   {!clientId && <td className="px-4 py-3 text-muted-foreground">{clientName(c.clientId)}</td>}
                   <td className="px-4 py-3 text-muted-foreground">{fuelName(c.fuelTypeId)}</td>
                   <td className="px-4 py-3">{c.balance.toLocaleString('ru-RU')} {fuelUnit(c.fuelTypeId)}</td>
+                  <td className={`px-4 py-3 ${c.price < 0 ? 'text-accent' : c.price > 0 ? 'text-primary' : 'text-muted-foreground'}`}>
+                    {c.price.toLocaleString('ru-RU')} ₽
+                  </td>
                   <td className="px-4 py-3 text-muted-foreground">
                     {c.dailyLimit ? `${c.dailyLimit.toLocaleString('ru-RU')} ${fuelUnit(c.fuelTypeId)}` : '—'}
                   </td>
@@ -333,7 +340,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
               ))}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                  <td colSpan={9} className="px-4 py-10 text-center text-muted-foreground">
                     {loadingFuelCards ? 'Загрузка…' : 'Нет карт'}
                   </td>
                 </tr>
@@ -401,6 +408,9 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                 <input type="number" className={inputCls} value={draft.dailyLimit} onChange={(e) => setDraft({ ...draft, dailyLimit: Number(e.target.value) })} />
               </Field>
             </div>
+            <Field label="Цена, ₽">
+              <input type="number" className={inputCls} value={draft.price} onChange={(e) => setDraft({ ...draft, price: Number(e.target.value) })} />
+            </Field>
             {formError && (
               <p className="flex items-center gap-2 text-sm text-accent">
                 <Icon name="TriangleAlert" size={15} /> {formError}

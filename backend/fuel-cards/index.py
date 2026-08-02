@@ -54,6 +54,7 @@ def card_row_to_json(c: Dict[str, Any]) -> Dict[str, Any]:
         'fuelTypeId': str(c['fuel_type_id']),
         'clientId': str(c['client_id']),
         'balance': float(c['balance']),
+        'price': float(c['price']),
         'status': c['status'],
         'blockReason': c['block_reason'],
         'dailyLimit': float(c['daily_limit']),
@@ -147,7 +148,7 @@ def create_balance_card_if_needed(cur, client_id: int, fuel_type_id: int):
     cur.execute(
         "INSERT INTO fuel_cards (code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at) "
         "VALUES ('0000', %s, %s, %s, 0, 'active', '', 0, %s) "
-        "RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at",
+        "RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at",
         (free_idx, fuel_type_id, client_id, date.today()),
     )
     new_card = cur.fetchone()
@@ -191,7 +192,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             total = cur.fetchone()['cnt']
 
             cur.execute(
-                'SELECT id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at '
+                'SELECT id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at '
                 'FROM fuel_cards WHERE client_id = %s ORDER BY id LIMIT %s OFFSET %s',
                 (session['user_id'], limit, offset),
             )
@@ -234,7 +235,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             total = cur.fetchone()['cnt']
 
             cur.execute(
-                f'SELECT id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at '
+                f'SELECT id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at '
                 f'FROM fuel_cards {where_sql} ORDER BY id LIMIT %s OFFSET %s',
                 args + [limit, offset],
             )
@@ -255,7 +256,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return response(400, {'error': 'Не указан id'})
             cur.execute(
                 "UPDATE fuel_cards SET status='blocked', block_reason=%s, blocked_at=%s WHERE id=%s "
-                "RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at",
+                "RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at",
                 (reason, date.today(), cid),
             )
             c = cur.fetchone()
@@ -271,7 +272,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return response(400, {'error': 'Не указан id'})
             cur.execute(
                 "UPDATE fuel_cards SET status='active', block_reason='', blocked_at=NULL WHERE id=%s "
-                "RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at",
+                "RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at",
                 (cid,),
             )
             c = cur.fetchone()
@@ -294,7 +295,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return response(400, {'error': 'Сумма должна быть положительной'})
             cur.execute(
                 'UPDATE fuel_cards SET balance = balance + %s WHERE id=%s '
-                'RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at',
+                'RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at',
                 (amount, cid),
             )
             c = cur.fetchone()
@@ -351,7 +352,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
             cur.execute(
                 'UPDATE fuel_cards SET balance = balance - %s WHERE id = %s '
-                'RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at',
+                'RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at',
                 (quantity, cid),
             )
             c = cur.fetchone()
@@ -445,7 +446,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             )
 
             cur.execute(
-                'SELECT id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at '
+                'SELECT id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at '
                 'FROM fuel_cards WHERE id IN (%s, %s)',
                 (from_id, to_id),
             )
@@ -459,6 +460,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             fuel_type_id = body_data.get('fuel_type_id')
             client_id = body_data.get('client_id')
             daily_limit = body_data.get('daily_limit') or 0
+            price = body_data.get('price') or 0
 
             if not code or idx is None or not fuel_type_id or not client_id:
                 return response(400, {'error': 'Заполните код, индекс, вид топлива и клиента'})
@@ -471,10 +473,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 return response(400, {'error': f'Карта {code}/{idx} уже существует'})
 
             cur.execute(
-                "INSERT INTO fuel_cards (code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at) "
-                "VALUES (%s, %s, %s, %s, 0, 'active', '', %s, %s) "
-                "RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at",
-                (code, idx, fuel_type_id, client_id, daily_limit, date.today()),
+                "INSERT INTO fuel_cards (code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at) "
+                "VALUES (%s, %s, %s, %s, 0, %s, 'active', '', %s, %s) "
+                "RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at",
+                (code, idx, fuel_type_id, client_id, price, daily_limit, date.today()),
             )
             new_card = cur.fetchone()
 
@@ -497,13 +499,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             client_id = body_data.get('client_id')
             daily_limit = body_data.get('daily_limit') or 0
             balance = body_data.get('balance')
+            price = body_data.get('price') or 0
             code = body_data.get('code')
             idx = body_data.get('idx')
 
             cur.execute(
-                'UPDATE fuel_cards SET fuel_type_id=%s, client_id=%s, daily_limit=%s, balance=%s, code=%s, idx=%s '
-                'WHERE id=%s RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at',
-                (fuel_type_id, client_id, daily_limit, balance, code, idx, cid),
+                'UPDATE fuel_cards SET fuel_type_id=%s, client_id=%s, daily_limit=%s, balance=%s, price=%s, code=%s, idx=%s '
+                'WHERE id=%s RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at',
+                (fuel_type_id, client_id, daily_limit, balance, price, code, idx, cid),
             )
             c = cur.fetchone()
             if not c:

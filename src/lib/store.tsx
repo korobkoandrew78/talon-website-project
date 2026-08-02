@@ -88,6 +88,7 @@ interface Store {
     fuel_type_id: string;
     client_id: string;
     daily_limit: number;
+    price: number;
   }) => Promise<FuelCard[]>;
   updateFuelCard: (
     id: string,
@@ -96,6 +97,7 @@ interface Store {
       client_id: string;
       daily_limit: number;
       balance: number;
+      price: number;
       code: string;
       idx: number;
     },
@@ -396,6 +398,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     fuel_type_id: string;
     client_id: string;
     daily_limit: number;
+    price: number;
   }) => {
     const res = await api<{ items: FuelCard[] }>('fuel-cards', { method: 'POST', body: payload });
     await refreshFuelCards();
@@ -409,6 +412,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       client_id: string;
       daily_limit: number;
       balance: number;
+      price: number;
       code: string;
       idx: number;
     },

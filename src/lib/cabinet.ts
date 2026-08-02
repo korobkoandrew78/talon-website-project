@@ -105,6 +105,7 @@ export interface FuelCard {
   fuelTypeId: string;
   clientId: string;
   balance: number;
+  price: number; // может быть отрицательной, нулевой или положительной
   status: CardStatus;
   blockReason: string;
   dailyLimit: number;
@@ -286,6 +287,7 @@ export const initialFuelCards: FuelCard[] = [
     fuelTypeId: 'f_1',
     clientId: 'c_1',
     balance: 12400,
+    price: 0,
     status: 'active',
     blockReason: '',
     dailyLimit: 5000,
@@ -299,6 +301,7 @@ export const initialFuelCards: FuelCard[] = [
     fuelTypeId: 'f_1',
     clientId: 'c_1',
     balance: 0,
+    price: 0,
     status: 'active',
     blockReason: '',
     dailyLimit: 0,
@@ -312,6 +315,7 @@ export const initialFuelCards: FuelCard[] = [
     fuelTypeId: 'f_4',
     clientId: 'c_3',
     balance: 8300,
+    price: 0,
     status: 'blocked',
     blockReason: 'Просрочена оплата',
     dailyLimit: 3000,
