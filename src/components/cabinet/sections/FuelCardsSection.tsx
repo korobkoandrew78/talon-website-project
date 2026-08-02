@@ -71,6 +71,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const [fFuel, setFFuel] = useState('');
 
   const fuelName = (id: string) => fuelTypes.find((f) => f.id === id)?.name ?? '—';
+  const fuelUnit = (id: string) => fuelTypes.find((f) => f.id === id)?.unit ?? 'руб';
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '—';
 
   const scoped = useMemo(
@@ -278,8 +279,10 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                   </td>
                   {!clientId && <td className="px-4 py-3 text-muted-foreground">{clientName(c.clientId)}</td>}
                   <td className="px-4 py-3 text-muted-foreground">{fuelName(c.fuelTypeId)}</td>
-                  <td className="px-4 py-3">{c.balance.toLocaleString('ru-RU')} ₽</td>
-                  <td className="px-4 py-3 text-muted-foreground">{c.dailyLimit ? c.dailyLimit.toLocaleString('ru-RU') : '—'}</td>
+                  <td className="px-4 py-3">{c.balance.toLocaleString('ru-RU')} {fuelUnit(c.fuelTypeId)}</td>
+                  <td className="px-4 py-3 text-muted-foreground">
+                    {c.dailyLimit ? `${c.dailyLimit.toLocaleString('ru-RU')} ${fuelUnit(c.fuelTypeId)}` : '—'}
+                  </td>
                   <td className="px-4 py-3"><StatusPill active={c.status === 'active'} on="Активна" off="Заблокирована" /></td>
                   <td className="px-4 py-3 text-muted-foreground">{c.activatedAt}</td>
                   {!readOnly && (
@@ -361,10 +364,10 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
               </select>
             </Field>
             <div className="grid grid-cols-2 gap-4">
-              <Field label="Баланс">
+              <Field label={`Баланс, ${fuelUnit(draft.fuelTypeId)}`}>
                 <input type="number" className={inputCls} value={draft.balance} onChange={(e) => setDraft({ ...draft, balance: Number(e.target.value) })} />
               </Field>
-              <Field label="Дневной лимит">
+              <Field label={`Дневной лимит, ${fuelUnit(draft.fuelTypeId)}`}>
                 <input type="number" className={inputCls} value={draft.dailyLimit} onChange={(e) => setDraft({ ...draft, dailyLimit: Number(e.target.value) })} />
               </Field>
             </div>
@@ -394,7 +397,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
             <DialogTitle>Пополнить баланс · {cardNumber(draft)}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
-            <Field label="Сумма пополнения, ₽">
+            <Field label={`Сумма пополнения, ${fuelUnit(draft.fuelTypeId)}`}>
               <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
             </Field>
             {formError && mode === 'topup' && (
@@ -431,7 +434,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                 ))}
               </select>
             </Field>
-            <Field label="Сумма, ₽">
+            <Field label={`Сумма, ${fuelUnit(draft.fuelTypeId)}`}>
               <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
             </Field>
             {formError && mode === 'move' && (
