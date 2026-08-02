@@ -30,6 +30,12 @@ const OPERATION_COLORS: Record<OperationType, string> = {
   delete: 'bg-destructive/15 text-destructive',
 };
 
+// Короткие подписи операций для отображения в таблице (в фильтре и экспорте — полные названия).
+const TABLE_OPERATION_LABELS: Partial<Record<OperationType, string>> = {
+  move_out: 'Списание',
+  move_in: 'Оприходование',
+};
+
 const formatDateTime = (iso: string) => {
   if (!iso) return '—';
   const d = new Date(iso);
@@ -211,19 +217,31 @@ const OperationsSection = () => {
         <h2 className="mb-4 hidden font-head text-xl font-medium print:block">Журнал операций по топливным картам</h2>
         <TableCard className="print:border-0 print:rounded-none">
           <div className="overflow-x-auto">
-            <table className="w-full whitespace-nowrap text-sm">
+            <table className="w-full table-fixed whitespace-nowrap text-sm">
+              <colgroup>
+                <col className="w-[112px]" />
+                <col className="w-[68px]" />
+                <col className="w-[140px]" />
+                <col className="w-[76px]" />
+                <col className="w-[140px]" />
+                <col className="w-[108px]" />
+                <col className="w-[90px]" />
+                <col className="w-[76px]" />
+                <col className="w-[90px]" />
+                <col />
+              </colgroup>
               <thead>
                 <tr className="border-b border-border text-left">
-                  <Th>Дата/время</Th>
-                  <Th>№ карты</Th>
-                  <Th>Клиент</Th>
-                  <Th>Топливо</Th>
-                  <Th>АЗС</Th>
-                  <Th>Операция</Th>
-                  <Th>Кол-во</Th>
-                  <Th>Цена</Th>
-                  <Th>Сумма</Th>
-                  <Th>Комментарий</Th>
+                  <Th className="px-3 py-2">Дата/время</Th>
+                  <Th className="px-3 py-2">№ карты</Th>
+                  <Th className="px-3 py-2">Клиент</Th>
+                  <Th className="px-3 py-2">Топливо</Th>
+                  <Th className="px-3 py-2">АЗС</Th>
+                  <Th className="px-3 py-2">Операция</Th>
+                  <Th className="px-3 py-2">Кол-во</Th>
+                  <Th className="px-3 py-2">Цена</Th>
+                  <Th className="px-3 py-2">Сумма</Th>
+                  <Th className="px-3 py-2">Комментарий</Th>
                 </tr>
               </thead>
               <tbody>
@@ -231,20 +249,20 @@ const OperationsSection = () => {
                   const unit = unitShort(fuelTypes.find((f) => f.id === o.fuelTypeId)?.unit ?? 'литр');
                   return (
                     <tr key={o.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
-                      <td className="px-4 py-3 text-muted-foreground">{formatDateTime(o.createdAt)}</td>
-                      <td className="px-4 py-3 font-medium">{o.cardNumber || '—'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{o.clientName || '—'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{o.fuelName || '—'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{o.stationName || '—'}</td>
-                      <td className="px-4 py-3">
-                        <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${OPERATION_COLORS[o.operation] ?? 'bg-secondary'}`}>
-                          {OPERATION_LABELS[o.operation] ?? o.operation}
+                      <td className="px-3 py-2 text-xs text-muted-foreground">{formatDateTime(o.createdAt)}</td>
+                      <td className="px-3 py-2 font-medium">{o.cardNumber || '—'}</td>
+                      <td className="truncate px-3 py-2 text-muted-foreground" title={o.clientName}>{o.clientName || '—'}</td>
+                      <td className="truncate px-3 py-2 text-muted-foreground">{o.fuelName || '—'}</td>
+                      <td className="truncate px-3 py-2 text-muted-foreground" title={o.stationName}>{o.stationName || '—'}</td>
+                      <td className="px-3 py-2">
+                        <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${OPERATION_COLORS[o.operation] ?? 'bg-secondary'}`}>
+                          {TABLE_OPERATION_LABELS[o.operation] ?? OPERATION_LABELS[o.operation] ?? o.operation}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{o.quantity ? `${o.quantity.toLocaleString('ru-RU', { minimumFractionDigits: 3 })} ${unit}` : '—'}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{o.price ? `${o.price.toLocaleString('ru-RU')} ₽` : '—'}</td>
-                      <td className="px-4 py-3">{o.amount ? `${o.amount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽` : '—'}</td>
-                      <td className="max-w-[420px] whitespace-normal px-4 py-3 text-muted-foreground">{o.comment}</td>
+                      <td className="px-3 py-2">{o.quantity ? `${o.quantity.toLocaleString('ru-RU', { minimumFractionDigits: 3 })} ${unit}` : '—'}</td>
+                      <td className="px-3 py-2 text-muted-foreground">{o.price ? o.price.toLocaleString('ru-RU') : '—'}</td>
+                      <td className="px-3 py-2">{o.amount ? `${o.amount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽` : '—'}</td>
+                      <td className="truncate whitespace-nowrap px-3 py-2 text-muted-foreground" title={o.comment}>{o.comment}</td>
                     </tr>
                   );
                 })}
