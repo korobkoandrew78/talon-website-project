@@ -126,15 +126,15 @@ const ManagersSection = () => {
       </TableCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent key={draft.id || 'new'} className="max-h-[85vh] max-w-md overflow-y-auto">
+        <DialogContent key={draft.id || 'new'} className="max-h-[90vh] max-w-sm overflow-y-auto p-5">
           <DialogHeader>
-            <DialogTitle>{draft.id ? 'Изменить менеджера' : 'Новый менеджер'}</DialogTitle>
+            <DialogTitle className="text-base">{draft.id ? 'Изменить менеджера' : 'Новый менеджер'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-3 py-1">
+          <div className="space-y-2.5">
             <Field label="ФИО">
               <input className={inputCls} value={draft.fullName} onChange={(e) => setDraft({ ...draft, fullName: e.target.value })} />
             </Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-2.5">
               <Field label="Логин">
                 <input className={inputCls} value={draft.login} onChange={(e) => setDraft({ ...draft, login: e.target.value })} />
               </Field>
@@ -145,16 +145,16 @@ const ManagersSection = () => {
             <Field label="Номер телефона">
               <input className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
             </Field>
-            <div className="flex items-center gap-4 rounded-xl border border-border px-3.5 py-2.5">
+            <div className="flex items-center justify-between gap-2 rounded-xl border border-border px-3 py-2">
               <SwitchRow
                 label="Активен"
                 checked={draft.status === 'active'}
                 onChange={(v) => setDraft({ ...draft, status: v ? 'active' : 'blocked' })}
                 bare
               />
-              <div className="h-5 w-px bg-border" />
+              <div className="h-5 w-px shrink-0 bg-border" />
               <SwitchRow
-                label="Только просмотр"
+                label="Просмотр"
                 checked={draft.readOnly}
                 onChange={(v) => setDraft({ ...draft, readOnly: v })}
                 bare
@@ -173,7 +173,7 @@ const ManagersSection = () => {
               </p>
             )}
           </div>
-          <DialogFooter>
+          <DialogFooter className="mt-1">
             <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
             <button
               onClick={save}

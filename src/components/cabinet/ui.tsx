@@ -125,7 +125,7 @@ export const SectionPicker = ({
   value: string[];
   onChange: (next: string[]) => void;
 }) => (
-  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+  <div className="grid grid-cols-2 gap-2">
     {options.map((o) => {
       const checked = value.includes(o.key);
       return (
@@ -136,7 +136,7 @@ export const SectionPicker = ({
             onChange(checked ? value.filter((v) => v !== o.key) : [...value, o.key])
           }
           className={cn(
-            'flex items-center gap-2.5 rounded-xl border px-3 py-2.5 text-sm transition-colors',
+            'flex items-center gap-2 whitespace-nowrap rounded-xl border px-2.5 py-2 text-xs transition-colors',
             checked
               ? 'border-primary bg-primary/10 text-foreground'
               : 'border-border text-muted-foreground hover:bg-secondary',
@@ -144,14 +144,14 @@ export const SectionPicker = ({
         >
           <span
             className={cn(
-              'flex h-5 w-5 items-center justify-center rounded-md border',
+              'flex h-4 w-4 shrink-0 items-center justify-center rounded-md border',
               checked ? 'border-primary bg-primary text-primary-foreground' : 'border-border',
             )}
           >
-            {checked && <Icon name="Check" size={13} />}
+            {checked && <Icon name="Check" size={11} />}
           </span>
-          <Icon name={o.icon} size={16} />
-          {o.label}
+          <Icon name={o.icon} size={14} className="shrink-0" />
+          <span className="truncate">{o.label}</span>
         </button>
       );
     })}
