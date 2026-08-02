@@ -25,7 +25,7 @@ import {
 
 const INDEXES = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-type Mode = 'create' | 'edit' | 'topup' | 'refuel' | 'move' | 'block' | null;
+type Mode = 'create' | 'edit' | 'topup' | 'move' | 'block' | null;
 
 const emptyCard = (): FuelCard => ({
   id: '',
@@ -52,13 +52,11 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     loadingFuelCards,
     fuelTypes,
     clients,
-    stations,
     createFuelCard,
     updateFuelCard,
     blockFuelCard,
     unblockFuelCard,
     topupFuelCard,
-    refuelFuelCard,
     moveFuelCard,
   } = useStore();
 
@@ -67,8 +65,6 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const [amount, setAmount] = useState(0);
   const [toAmount, setToAmount] = useState(0);
   const [targetId, setTargetId] = useState('');
-  const [stationId, setStationId] = useState('');
-  const [refuelPrice, setRefuelPrice] = useState(0);
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
   const [moveConfirmOpen, setMoveConfirmOpen] = useState(false);
@@ -117,14 +113,6 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     setAmount(0);
     setFormError('');
     setMode('topup');
-  };
-  const openRefuel = (c: FuelCard) => {
-    setDraft({ ...c });
-    setAmount(0);
-    setStationId(stations[0]?.id ?? '');
-    setRefuelPrice(fuelTypes.find((f) => f.id === c.fuelTypeId)?.price ?? 0);
-    setFormError('');
-    setMode('refuel');
   };
   const openMove = (c: FuelCard) => {
     setDraft({ ...c });
@@ -193,31 +181,6 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
       setMode(null);
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Не удалось пополнить баланс');
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const doRefuel = async () => {
-    setFormError('');
-    if (!stationId) {
-      setFormError('Выберите АЗС');
-      return;
-    }
-    if (amount <= 0) {
-      setFormError('Укажите количество больше нуля');
-      return;
-    }
-    if (amount > draft.balance) {
-      setFormError(`Недостаточно средств на карте: остаток ${draft.balance.toLocaleString('ru-RU')} ${fuelUnit(draft.fuelTypeId)}`);
-      return;
-    }
-    setSaving(true);
-    try {
-      await refuelFuelCard(draft.id, stationId, amount, refuelPrice);
-      setMode(null);
-    } catch (e) {
-      setFormError(e instanceof ApiError ? e.message : 'Не удалось провести заправку');
     } finally {
       setSaving(false);
     }
@@ -362,7 +325,6 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                         )}
                         <RowAction icon="Pencil" label="Изменить" onClick={() => openEdit(c)} />
                         <RowAction icon="Plus" label="Пополнить баланс" onClick={() => openTopup(c)} />
-                        <RowAction icon="Fuel" label="Заправка" onClick={() => openRefuel(c)} />
                         <RowAction icon="ArrowLeftRight" label="Переместить топливо" onClick={() => openMove(c)} />
                       </div>
                     </td>
@@ -482,64 +444,6 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
               className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? 'Пополнение…' : 'Пополнить'}
-            </button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Заправка */}
-      <Dialog open={mode === 'refuel'} onOpenChange={(o) => !o && setMode(null)}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <Icon name="Fuel" size={18} className="text-accent" />
-              Заправка · {cardNumber(draft)}
-            </DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4 py-2">
-            <div className="rounded-xl border border-border bg-secondary/40 px-3.5 py-2.5 text-sm">
-              <div className="flex items-center justify-between">
-                <span className="text-muted-foreground">Вид топлива</span>
-                <span className="font-medium">{fuelName(draft.fuelTypeId)}</span>
-              </div>
-              <div className="mt-1 flex items-center justify-between">
-                <span className="text-muted-foreground">Остаток на карте</span>
-                <span className="font-medium">{draft.balance.toLocaleString('ru-RU', { minimumFractionDigits: 3 })} {fuelUnit(draft.fuelTypeId)}</span>
-              </div>
-            </div>
-            <Field label="АЗС">
-              <select className={inputCls} value={stationId} onChange={(e) => setStationId(e.target.value)}>
-                <option value="">Выберите АЗС</option>
-                {stations.map((s) => (
-                  <option key={s.id} value={s.id}>{s.name}</option>
-                ))}
-              </select>
-            </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label={`Количество, ${fuelUnit(draft.fuelTypeId)}`}>
-                <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
-              </Field>
-              <Field label="Цена, ₽">
-                <input type="number" className={inputCls} value={refuelPrice} onChange={(e) => setRefuelPrice(Number(e.target.value))} />
-              </Field>
-            </div>
-            <p className="text-xs text-muted-foreground">
-              Сумма: <span className="text-foreground font-medium">{(amount * refuelPrice).toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽</span>
-            </p>
-            {formError && mode === 'refuel' && (
-              <p className="flex items-center gap-2 text-sm text-accent">
-                <Icon name="TriangleAlert" size={15} /> {formError}
-              </p>
-            )}
-          </div>
-          <DialogFooter>
-            <button onClick={() => setMode(null)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
-            <button
-              onClick={doRefuel}
-              disabled={saving}
-              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
-            >
-              {saving ? 'Заправка…' : 'Заправить'}
             </button>
           </DialogFooter>
         </DialogContent>
