@@ -48,25 +48,27 @@ const CabinetShell = ({ role, nav, active, onNavigate, children, topbar }: Props
       </header>
 
       <div className="mx-auto flex max-w-[1400px] gap-6 px-4 py-6 md:px-8">
-        <aside className="hidden w-60 shrink-0 lg:block">
-          <nav className="sticky top-24 space-y-1">
-            {nav.map((n) => (
-              <button
-                key={n.key}
-                onClick={() => onNavigate(n.key)}
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors',
-                  active === n.key
-                    ? 'bg-primary text-primary-foreground'
-                    : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
-                )}
-              >
-                <Icon name={n.icon} size={18} />
-                {n.label}
-              </button>
-            ))}
-          </nav>
-        </aside>
+        {nav.length > 1 && (
+          <aside className="hidden w-60 shrink-0 lg:block">
+            <nav className="sticky top-24 space-y-1">
+              {nav.map((n) => (
+                <button
+                  key={n.key}
+                  onClick={() => onNavigate(n.key)}
+                  className={cn(
+                    'flex w-full items-center gap-3 rounded-xl px-4 py-3 text-sm transition-colors',
+                    active === n.key
+                      ? 'bg-primary text-primary-foreground'
+                      : 'text-muted-foreground hover:bg-secondary hover:text-foreground',
+                  )}
+                >
+                  <Icon name={n.icon} size={18} />
+                  {n.label}
+                </button>
+              ))}
+            </nav>
+          </aside>
+        )}
 
         <main className="min-w-0 flex-1">
           {/* мобильная навигация */}
