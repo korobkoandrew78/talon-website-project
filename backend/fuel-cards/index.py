@@ -152,21 +152,13 @@ def create_balance_card_if_needed(cur, client_id: int, fuel_type_id: int):
     )
     new_card = cur.fetchone()
 
-    fuel_info = get_fuel_info(cur, fuel_type_id)
-    client_name = get_client_name(cur, client_id)
-    number = card_number_str('0000', free_idx)
-    log_operation(
-        cur, new_card['id'], number, client_id, client_name, fuel_type_id, fuel_info['name'],
-        None, '', 'create', 0, 0, 0,
-        f'Автоматическое создание балансной карты {number} для клиента {client_name}, вид топлива {fuel_info["name"]}',
-    )
-
     return new_card
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     '''Business: CRUD и спец-действия (block/unblock/topup/move/refuel) топливных карт для менеджера,
-    просмотр своих карт для клиента. Все мутации фиксируются в журнале fuel_card_operations.
+    просмотр своих карт для клиента. В журнал fuel_card_operations фиксируются только
+    операции с движением топлива (topup/refuel/move_out/move_in).
     Args: event с httpMethod, body, headers, queryStringParameters; context с request_id.
     Returns: HTTP JSON ответ со списком/объектом карты либо ошибкой.
     '''
@@ -270,15 +262,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not c:
                 return response(404, {'error': 'Карта не найдена'})
 
-            fuel_info = get_fuel_info(cur, c['fuel_type_id'])
-            client_name = get_client_name(cur, c['client_id'])
-            number = card_number_str(c['code'], c['idx'])
-            comment = f'Блокировка карты. Причина: {reason}' if reason else 'Блокировка карты'
-            log_operation(
-                cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
-                None, '', 'block', 0, 0, 0, comment,
-            )
-
             return response(200, card_row_to_json(c))
 
         if method == 'POST' and action == 'unblock':
@@ -294,14 +277,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             c = cur.fetchone()
             if not c:
                 return response(404, {'error': 'Карта не найдена'})
-
-            fuel_info = get_fuel_info(cur, c['fuel_type_id'])
-            client_name = get_client_name(cur, c['client_id'])
-            number = card_number_str(c['code'], c['idx'])
-            log_operation(
-                cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
-                None, '', 'unblock', 0, 0, 0, 'Разблокировка карты',
-            )
 
             return response(200, card_row_to_json(c))
 
@@ -503,15 +478,6 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             )
             new_card = cur.fetchone()
 
-            fuel_info = get_fuel_info(cur, fuel_type_id)
-            client_name = get_client_name(cur, client_id)
-            number = card_number_str(code, idx)
-            log_operation(
-                cur, new_card['id'], number, client_id, client_name, fuel_type_id, fuel_info['name'],
-                None, '', 'create', 0, 0, 0,
-                f'Создание карты {number} для клиента {client_name}, вид топлива {fuel_info["name"]}',
-            )
-
             created = [card_row_to_json(new_card)]
 
             if code != '0000':
@@ -543,33 +509,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if not c:
                 return response(404, {'error': 'Карта не найдена'})
 
-            fuel_info = get_fuel_info(cur, c['fuel_type_id'])
-            client_name = get_client_name(cur, c['client_id'])
-            number = card_number_str(c['code'], c['idx'])
-            unit = unit_short(fuel_info['unit'])
-            comment = f'Изменение карты: дневной лимит {c["daily_limit"]} {unit}, баланс {c["balance"]} {unit}, клиент {client_name}, топливо {fuel_info["name"]}'
-            log_operation(
-                cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
-                None, '', 'update', 0, 0, 0, comment,
-            )
-
             return response(200, card_row_to_json(c))
 
         if method == 'DELETE':
             cid = params.get('id')
             if not cid:
                 return response(400, {'error': 'Не указан id'})
-
-            cur.execute('SELECT id, code, idx, fuel_type_id, client_id FROM fuel_cards WHERE id = %s', (cid,))
-            old = cur.fetchone()
-            if old:
-                fuel_info = get_fuel_info(cur, old['fuel_type_id'])
-                client_name = get_client_name(cur, old['client_id'])
-                number = card_number_str(old['code'], old['idx'])
-                log_operation(
-                    cur, old['id'], number, old['client_id'], client_name, old['fuel_type_id'], fuel_info['name'],
-                    None, '', 'delete', 0, 0, 0, f'Удаление карты {number}',
-                )
 
             cur.execute('DELETE FROM fuel_cards WHERE id = %s', (cid,))
             return response(200, {'ok': True})

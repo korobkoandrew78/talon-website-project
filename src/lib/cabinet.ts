@@ -121,27 +121,19 @@ export interface DiscountCard {
 }
 
 // ——— Журнал операций по топливным картам ———
+// Фиксируются только операции с движением топлива. Блокировка/разблокировка/
+// создание/изменение/удаление карт в журнал не попадают.
 export type OperationType =
   | 'topup'
   | 'refuel'
   | 'move_out'
-  | 'move_in'
-  | 'block'
-  | 'unblock'
-  | 'create'
-  | 'update'
-  | 'delete';
+  | 'move_in';
 
 export const OPERATION_LABELS: Record<OperationType, string> = {
   topup: 'Пополнение',
   refuel: 'Заправка',
   move_out: 'Перемещение (списание)',
   move_in: 'Перемещение (оприходование)',
-  block: 'Блокировка',
-  unblock: 'Разблокировка',
-  create: 'Создание',
-  update: 'Изменение',
-  delete: 'Удаление',
 };
 
 export interface FuelCardOperation {
