@@ -59,8 +59,8 @@ export const RowAction = ({
   </button>
 );
 
-export const TableCard = ({ children }: { children: ReactNode }) => (
-  <div className="overflow-hidden rounded-2xl border border-border bg-card">{children}</div>
+export const TableCard = ({ children, className }: { children: ReactNode; className?: string }) => (
+  <div className={cn('overflow-hidden rounded-2xl border border-border bg-card', className)}>{children}</div>
 );
 
 export const Th = ({ children, right }: { children: ReactNode; right?: boolean }) => (

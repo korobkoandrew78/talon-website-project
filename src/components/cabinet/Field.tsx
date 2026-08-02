@@ -1,4 +1,5 @@
 import { ReactNode } from 'react';
+import { Switch } from '@/components/ui/switch';
 
 export const Field = ({
   label,
@@ -22,26 +23,21 @@ export const SwitchRow = ({
   label,
   checked,
   onChange,
+  bare,
 }: {
   label: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  bare?: boolean;
 }) => (
-  <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
+  <div
+    className={
+      bare
+        ? 'flex flex-1 items-center justify-between gap-2'
+        : 'flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5'
+    }
+  >
     <span className="text-sm">{label}</span>
-    <button
-      type="button"
-      onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
-        checked ? 'bg-primary' : 'bg-secondary'
-      }`}
-      aria-pressed={checked}
-    >
-      <span
-        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white transition-transform ${
-          checked ? 'translate-x-5' : 'translate-x-0.5'
-        }`}
-      />
-    </button>
+    <Switch checked={checked} onCheckedChange={onChange} />
   </div>
 );

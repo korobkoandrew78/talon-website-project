@@ -79,7 +79,7 @@ const ManagersSection = () => {
         title="Менеджеры"
         action={<AddButton label="Новый менеджер" onClick={create} />}
       />
-      <TableCard>
+      <TableCard className="lg:w-3/4">
         <div className="overflow-x-auto">
           <table className="w-full whitespace-nowrap text-sm">
             <thead>
@@ -126,15 +126,15 @@ const ManagersSection = () => {
       </TableCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent key={draft.id || 'new'} className="max-h-[90vh] overflow-y-auto">
+        <DialogContent key={draft.id || 'new'} className="max-h-[85vh] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{draft.id ? 'Изменить менеджера' : 'Новый менеджер'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 py-1">
             <Field label="ФИО">
               <input className={inputCls} value={draft.fullName} onChange={(e) => setDraft({ ...draft, fullName: e.target.value })} />
             </Field>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               <Field label="Логин">
                 <input className={inputCls} value={draft.login} onChange={(e) => setDraft({ ...draft, login: e.target.value })} />
               </Field>
@@ -145,16 +145,19 @@ const ManagersSection = () => {
             <Field label="Номер телефона">
               <input className={inputCls} value={draft.phone} onChange={(e) => setDraft({ ...draft, phone: e.target.value })} />
             </Field>
-            <div className="grid gap-3 sm:grid-cols-2">
+            <div className="flex items-center gap-4 rounded-xl border border-border px-3.5 py-2.5">
               <SwitchRow
                 label="Активен"
                 checked={draft.status === 'active'}
                 onChange={(v) => setDraft({ ...draft, status: v ? 'active' : 'blocked' })}
+                bare
               />
+              <div className="h-5 w-px bg-border" />
               <SwitchRow
                 label="Только просмотр"
                 checked={draft.readOnly}
                 onChange={(v) => setDraft({ ...draft, readOnly: v })}
+                bare
               />
             </div>
             <Field label="Доступные разделы">

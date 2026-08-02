@@ -165,11 +165,11 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       </TableCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent key={draft.id || 'new'} className="max-h-[90vh] overflow-y-auto">
+        <DialogContent key={draft.id || 'new'} className="max-h-[85vh] max-w-md overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{draft.id ? 'Изменить клиента' : 'Новый клиент'}</DialogTitle>
           </DialogHeader>
-          <div className="space-y-4 py-2">
+          <div className="space-y-3 py-1">
             <div className="grid grid-cols-2 gap-4">
               <Field label="ИНН">
                 <input className={inputCls} value={draft.inn} onChange={(e) => setDraft({ ...draft, inn: e.target.value })} />
