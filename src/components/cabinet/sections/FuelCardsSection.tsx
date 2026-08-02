@@ -67,6 +67,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const [targetId, setTargetId] = useState('');
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
+  const [moveConfirmOpen, setMoveConfirmOpen] = useState(false);
 
   const [fNumber, setFNumber] = useState('');
   const [fClient, setFClient] = useState('');
@@ -119,6 +120,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     setToAmount(0);
     setTargetId('');
     setFormError('');
+    setMoveConfirmOpen(false);
     setMode('move');
   };
   const openBlock = (c: FuelCard) => {
@@ -187,19 +189,37 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const targetCard = scoped.find((c) => c.id === targetId);
   const isDifferentFuel = !!targetCard && targetCard.fuelTypeId !== draft.fuelTypeId;
 
-  const doMove = async () => {
-    if (!targetId || amount <= 0) return;
+  const requestMove = () => {
+    setFormError('');
+    if (!targetId) {
+      setFormError('Выберите карту назначения');
+      return;
+    }
+    if (amount <= 0) {
+      setFormError('Укажите количество больше нуля');
+      return;
+    }
+    if (amount > draft.balance) {
+      setFormError(`Недостаточно средств на карте: остаток ${draft.balance.toLocaleString('ru-RU')} ${fuelUnit(draft.fuelTypeId)}`);
+      return;
+    }
     if (isDifferentFuel && toAmount <= 0) {
       setFormError('Укажите количество к получению');
       return;
     }
+    setMoveConfirmOpen(true);
+  };
+
+  const doMove = async () => {
     setSaving(true);
     setFormError('');
     try {
       await moveFuelCard(draft.id, targetId, amount, isDifferentFuel ? toAmount : undefined);
+      setMoveConfirmOpen(false);
       setMode(null);
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Не удалось переместить топливо');
+      setMoveConfirmOpen(false);
     } finally {
       setSaving(false);
     }
@@ -436,6 +456,16 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
             <DialogTitle>Переместить топливо · {cardNumber(draft)}</DialogTitle>
           </DialogHeader>
           <div className="space-y-4 py-2">
+            <div className="rounded-xl border border-border bg-secondary/40 px-3.5 py-2.5 text-sm">
+              <div className="flex items-center justify-between">
+                <span className="text-muted-foreground">Вид топлива</span>
+                <span className="font-medium">{fuelName(draft.fuelTypeId)}</span>
+              </div>
+              <div className="mt-1 flex items-center justify-between">
+                <span className="text-muted-foreground">Остаток на карте</span>
+                <span className="font-medium">{draft.balance.toLocaleString('ru-RU')} {fuelUnit(draft.fuelTypeId)}</span>
+              </div>
+            </div>
             <Field label="На карту клиента">
               <select
                 className={inputCls}
@@ -468,11 +498,54 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
           <DialogFooter>
             <button onClick={() => setMode(null)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
             <button
+              onClick={requestMove}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground"
+            >
+              Переместить
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Подтверждение перемещения */}
+      <Dialog open={moveConfirmOpen} onOpenChange={(o) => !o && setMoveConfirmOpen(false)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Подтвердите перемещение</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2 text-sm">
+            <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
+              <span className="text-muted-foreground">С карты</span>
+              <span className="font-medium">{cardNumber(draft)}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
+              <span className="text-muted-foreground">На карту</span>
+              <span className="font-medium">{targetCard ? cardNumber(targetCard) : '—'}</span>
+            </div>
+            <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
+              <span className="text-muted-foreground">Топливо к списанию</span>
+              <span className="font-medium">{fuelName(draft.fuelTypeId)} · {amount.toLocaleString('ru-RU')} {fuelUnit(draft.fuelTypeId)}</span>
+            </div>
+            {isDifferentFuel && targetCard && (
+              <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
+                <span className="text-muted-foreground">Топливо к получению</span>
+                <span className="font-medium">{fuelName(targetCard.fuelTypeId)} · {toAmount.toLocaleString('ru-RU')} {fuelUnit(targetCard.fuelTypeId)}</span>
+              </div>
+            )}
+            {formError && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <button onClick={() => setMoveConfirmOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
+            <button
               onClick={doMove}
               disabled={saving}
               className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
-              {saving ? 'Перемещение…' : 'Переместить'}
+              {saving ? 'Перемещение…' : 'Подтвердить'}
             </button>
           </DialogFooter>
         </DialogContent>
