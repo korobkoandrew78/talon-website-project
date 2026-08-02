@@ -63,6 +63,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const [mode, setMode] = useState<Mode>(null);
   const [draft, setDraft] = useState<FuelCard>(emptyCard());
   const [amount, setAmount] = useState(0);
+  const [toAmount, setToAmount] = useState(0);
   const [targetId, setTargetId] = useState('');
   const [formError, setFormError] = useState('');
   const [saving, setSaving] = useState(false);
@@ -115,6 +116,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const openMove = (c: FuelCard) => {
     setDraft({ ...c });
     setAmount(0);
+    setToAmount(0);
     setTargetId('');
     setFormError('');
     setMode('move');
@@ -182,12 +184,19 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     }
   };
 
+  const targetCard = scoped.find((c) => c.id === targetId);
+  const isDifferentFuel = !!targetCard && targetCard.fuelTypeId !== draft.fuelTypeId;
+
   const doMove = async () => {
     if (!targetId || amount <= 0) return;
+    if (isDifferentFuel && toAmount <= 0) {
+      setFormError('Укажите количество к получению');
+      return;
+    }
     setSaving(true);
     setFormError('');
     try {
-      await moveFuelCard(draft.id, targetId, amount);
+      await moveFuelCard(draft.id, targetId, amount, isDifferentFuel ? toAmount : undefined);
       setMode(null);
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Не удалось переместить топливо');
@@ -428,16 +437,28 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
           </DialogHeader>
           <div className="space-y-4 py-2">
             <Field label="На карту клиента">
-              <select className={inputCls} value={targetId} onChange={(e) => setTargetId(e.target.value)}>
+              <select
+                className={inputCls}
+                value={targetId}
+                onChange={(e) => {
+                  setTargetId(e.target.value);
+                  setToAmount(0);
+                }}
+              >
                 <option value="">Выберите карту</option>
                 {moveTargets.map((c) => (
                   <option key={c.id} value={c.id}>{cardNumber(c)} · {fuelName(c.fuelTypeId)}</option>
                 ))}
               </select>
             </Field>
-            <Field label={`Сумма, ${fuelUnit(draft.fuelTypeId)}`}>
+            <Field label={`Количество к списанию, ${fuelUnit(draft.fuelTypeId)}`}>
               <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
             </Field>
+            {isDifferentFuel && (
+              <Field label={`Количество к получению, ${fuelUnit(targetCard!.fuelTypeId)}`}>
+                <input type="number" className={inputCls} value={toAmount} onChange={(e) => setToAmount(Number(e.target.value))} />
+              </Field>
+            )}
             {formError && mode === 'move' && (
               <p className="flex items-center gap-2 text-sm text-accent">
                 <Icon name="TriangleAlert" size={15} /> {formError}

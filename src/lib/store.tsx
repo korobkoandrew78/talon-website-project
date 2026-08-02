@@ -77,7 +77,7 @@ interface Store {
   blockFuelCard: (id: string, reason: string) => Promise<FuelCard>;
   unblockFuelCard: (id: string) => Promise<FuelCard>;
   topupFuelCard: (id: string, amount: number) => Promise<FuelCard>;
-  moveFuelCard: (fromId: string, toId: string, amount: number) => Promise<FuelCard[]>;
+  moveFuelCard: (fromId: string, toId: string, amount: number, toAmount?: number) => Promise<FuelCard[]>;
 
   createDiscountCard: (data: Omit<DiscountCard, 'id'>) => Promise<DiscountCard>;
   updateDiscountCard: (id: string, data: Omit<DiscountCard, 'id'>) => Promise<DiscountCard>;
@@ -342,11 +342,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     return c;
   }, [refreshFuelCards]);
 
-  const moveFuelCard = useCallback(async (fromId: string, toId: string, amount: number) => {
+  const moveFuelCard = useCallback(async (fromId: string, toId: string, amount: number, toAmount?: number) => {
     const res = await api<{ items: FuelCard[] }>('fuel-cards', {
       method: 'POST',
       query: { action: 'move' },
-      body: { from_id: fromId, to_id: toId, amount },
+      body: { from_id: fromId, to_id: toId, amount, to_amount: toAmount },
     });
     await refreshFuelCards();
     return res.items;

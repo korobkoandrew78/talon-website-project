@@ -243,31 +243,45 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             from_id = body_data.get('from_id')
             to_id = body_data.get('to_id')
             amount = body_data.get('amount')
+            to_amount = body_data.get('to_amount')
             if not from_id or not to_id or amount is None:
-                return response(400, {'error': 'Не указаны карты или сумма'})
+                return response(400, {'error': 'Не указаны карты или количество'})
             try:
                 amount = float(amount)
             except (TypeError, ValueError):
-                return response(400, {'error': 'Некорректная сумма'})
+                return response(400, {'error': 'Некорректное количество'})
             if amount <= 0:
-                return response(400, {'error': 'Сумма должна быть положительной'})
+                return response(400, {'error': 'Количество должно быть положительным'})
             if str(from_id) == str(to_id):
                 return response(400, {'error': 'Карты должны различаться'})
 
-            cur.execute('SELECT id, balance FROM fuel_cards WHERE id = %s', (from_id,))
+            cur.execute('SELECT id, balance, fuel_type_id FROM fuel_cards WHERE id = %s', (from_id,))
             src = cur.fetchone()
             if not src:
                 return response(404, {'error': 'Карта-источник не найдена'})
             if float(src['balance']) < amount:
                 return response(400, {'error': 'Недостаточно средств на карте'})
 
-            cur.execute('SELECT id FROM fuel_cards WHERE id = %s', (to_id,))
+            cur.execute('SELECT id, fuel_type_id FROM fuel_cards WHERE id = %s', (to_id,))
             dst = cur.fetchone()
             if not dst:
                 return response(404, {'error': 'Карта назначения не найдена'})
 
+            # Если виды топлива различаются, нужно отдельное количество к зачислению.
+            if str(src['fuel_type_id']) != str(dst['fuel_type_id']):
+                if to_amount is None:
+                    return response(400, {'error': 'Укажите количество к получению для другого вида топлива'})
+                try:
+                    to_amount = float(to_amount)
+                except (TypeError, ValueError):
+                    return response(400, {'error': 'Некорректное количество к получению'})
+                if to_amount <= 0:
+                    return response(400, {'error': 'Количество к получению должно быть положительным'})
+            else:
+                to_amount = amount
+
             cur.execute('UPDATE fuel_cards SET balance = balance - %s WHERE id = %s', (amount, from_id))
-            cur.execute('UPDATE fuel_cards SET balance = balance + %s WHERE id = %s', (amount, to_id))
+            cur.execute('UPDATE fuel_cards SET balance = balance + %s WHERE id = %s', (to_amount, to_id))
 
             cur.execute(
                 'SELECT id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at '
