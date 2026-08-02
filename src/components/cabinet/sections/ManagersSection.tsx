@@ -79,32 +79,32 @@ const ManagersSection = () => {
         title="Менеджеры"
         action={<AddButton label="Новый менеджер" onClick={create} />}
       />
-      <TableCard className="lg:w-3/4">
+      <TableCard>
         <div className="overflow-x-auto">
-          <table className="w-full whitespace-nowrap text-sm">
+          <table className="w-full table-fixed text-sm">
             <thead>
               <tr className="border-b border-border text-left">
-                <Th>Логин</Th>
-                <Th>Пароль</Th>
-                <Th>ФИО</Th>
-                <Th>Телефон</Th>
-                <Th>Статус</Th>
-                <Th>Только просмотр</Th>
-                <Th>Разделы</Th>
-                <Th right>Действия</Th>
+                <Th className="w-[12%]">Логин</Th>
+                <Th className="w-[12%]">Пароль</Th>
+                <Th className="w-[20%]">ФИО</Th>
+                <Th className="w-[14%]">Телефон</Th>
+                <Th className="w-[9%]">Статус</Th>
+                <Th className="w-[9%]">Просмотр</Th>
+                <Th className="w-[14%]">Разделы</Th>
+                <Th right className="w-[10%]">Действия</Th>
               </tr>
             </thead>
             <tbody>
               {pageItems.map((m) => (
                 <tr key={m.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
-                  <td className="px-4 py-3 font-medium">{m.login}</td>
-                  <td className="px-4 py-3 font-mono text-muted-foreground">{m.password}</td>
-                  <td className="px-4 py-3">{m.fullName}</td>
-                  <td className="px-4 py-3 text-muted-foreground">{m.phone}</td>
-                  <td className="px-4 py-3"><StatusPill active={m.status === 'active'} /></td>
-                  <td className="px-4 py-3">{m.readOnly ? 'Да' : 'Нет'}</td>
-                  <td className="px-4 py-3"><SectionIcons keys={m.sections} /></td>
-                  <td className="px-4 py-3">
+                  <td className="truncate px-3 py-3 font-medium">{m.login}</td>
+                  <td className="truncate px-3 py-3 font-mono text-muted-foreground">{m.password}</td>
+                  <td className="truncate px-3 py-3">{m.fullName}</td>
+                  <td className="truncate px-3 py-3 text-muted-foreground">{m.phone}</td>
+                  <td className="px-3 py-3"><StatusPill active={m.status === 'active'} /></td>
+                  <td className="px-3 py-3 text-muted-foreground">{m.readOnly ? 'Да' : 'Нет'}</td>
+                  <td className="px-3 py-3"><SectionIcons keys={m.sections} /></td>
+                  <td className="px-3 py-3">
                     <div className="flex justify-end gap-1.5">
                       <RowAction icon="Pencil" label="Изменить" onClick={() => edit(m)} />
                       <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(m.id)} />

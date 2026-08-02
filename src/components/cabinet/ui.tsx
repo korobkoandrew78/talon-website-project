@@ -63,8 +63,16 @@ export const TableCard = ({ children, className }: { children: ReactNode; classN
   <div className={cn('overflow-hidden rounded-2xl border border-border bg-card', className)}>{children}</div>
 );
 
-export const Th = ({ children, right }: { children: ReactNode; right?: boolean }) => (
-  <th className={cn('px-4 py-3 font-medium text-muted-foreground', right && 'text-right')}>
+export const Th = ({
+  children,
+  right,
+  className,
+}: {
+  children: ReactNode;
+  right?: boolean;
+  className?: string;
+}) => (
+  <th className={cn('px-3 py-3 font-medium text-muted-foreground', right && 'text-right', className)}>
     {children}
   </th>
 );
