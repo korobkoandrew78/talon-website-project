@@ -126,7 +126,7 @@ const ManagersSection = () => {
       </TableCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent key={draft.id || 'new'} className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{draft.id ? 'Изменить менеджера' : 'Новый менеджер'}</DialogTitle>
           </DialogHeader>

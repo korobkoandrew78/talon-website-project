@@ -165,7 +165,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       </TableCard>
 
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-h-[90vh] overflow-y-auto">
+        <DialogContent key={draft.id || 'new'} className="max-h-[90vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>{draft.id ? 'Изменить клиента' : 'Новый клиент'}</DialogTitle>
           </DialogHeader>
