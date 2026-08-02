@@ -1,12 +1,14 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
+import { useStore } from '@/lib/store';
 
 const ADMIN_LOGIN = 'Pi0neer78';
 const ADMIN_PASSWORD = 'Tytparol1!';
 
 const LoginPanel = () => {
   const navigate = useNavigate();
+  const { managers, clients } = useStore();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -17,6 +19,18 @@ const LoginPanel = () => {
     if (login === ADMIN_LOGIN && password === ADMIN_PASSWORD) {
       setError('');
       navigate('/admin');
+      return;
+    }
+    const manager = managers.find((m) => m.login === login && m.password === password);
+    if (manager) {
+      setError('');
+      navigate('/manager');
+      return;
+    }
+    const client = clients.find((c) => c.login === login && c.password === password);
+    if (client) {
+      setError('');
+      navigate('/client');
       return;
     }
     setError('Неверный логин или пароль');
