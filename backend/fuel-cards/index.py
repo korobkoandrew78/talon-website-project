@@ -62,6 +62,65 @@ def card_row_to_json(c: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
+def unit_short(unit: str) -> str:
+    return {'литр': 'л', 'руб': '₽', 'шт': 'шт'}.get(unit, 'шт')
+
+
+def card_number_str(code: str, idx: int) -> str:
+    return f'{code}/{idx}'
+
+
+def get_client_name(cur, client_id) -> str:
+    if not client_id:
+        return ''
+    cur.execute('SELECT name FROM clients WHERE id = %s', (client_id,))
+    row = cur.fetchone()
+    return row['name'] if row else ''
+
+
+def get_fuel_info(cur, fuel_type_id) -> Dict[str, Any]:
+    if not fuel_type_id:
+        return {'name': '', 'price': 0, 'unit': 'литр'}
+    cur.execute('SELECT name, price, unit FROM fuel_types WHERE id = %s', (fuel_type_id,))
+    row = cur.fetchone()
+    return row if row else {'name': '', 'price': 0, 'unit': 'литр'}
+
+
+def get_station_name(cur, station_id) -> str:
+    if not station_id:
+        return ''
+    cur.execute('SELECT name FROM stations WHERE id = %s', (station_id,))
+    row = cur.fetchone()
+    return row['name'] if row else ''
+
+
+def log_operation(
+    cur,
+    fuel_card_id,
+    card_number: str,
+    client_id,
+    client_name: str,
+    fuel_type_id,
+    fuel_name: str,
+    station_id,
+    station_name: str,
+    operation: str,
+    quantity: float,
+    price: float,
+    amount: float,
+    comment: str,
+):
+    cur.execute(
+        'INSERT INTO fuel_card_operations '
+        '(fuel_card_id, card_number, client_id, client_name, fuel_type_id, fuel_name, station_id, station_name, operation, quantity, price, amount, comment) '
+        'VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)',
+        (
+            fuel_card_id, card_number, client_id, client_name, fuel_type_id, fuel_name,
+            station_id, station_name, operation, quantity, price, amount, comment,
+        ),
+    )
+
+
 def create_balance_card_if_needed(cur, client_id: int, fuel_type_id: int):
     '''Проверяет наличие балансной карты (code=0000) у клиента для вида топлива,
     и создаёт её при отсутствии с первым свободным idx (1..9).'''
@@ -91,12 +150,23 @@ def create_balance_card_if_needed(cur, client_id: int, fuel_type_id: int):
         "RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at",
         (free_idx, fuel_type_id, client_id, date.today()),
     )
-    return cur.fetchone()
+    new_card = cur.fetchone()
+
+    fuel_info = get_fuel_info(cur, fuel_type_id)
+    client_name = get_client_name(cur, client_id)
+    number = card_number_str('0000', free_idx)
+    log_operation(
+        cur, new_card['id'], number, client_id, client_name, fuel_type_id, fuel_info['name'],
+        None, '', 'create', 0, 0, 0,
+        f'Автоматическое создание балансной карты {number} для клиента {client_name}, вид топлива {fuel_info["name"]}',
+    )
+
+    return new_card
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    '''Business: CRUD и спец-действия (block/unblock/topup/move) топливных карт для менеджера,
-    просмотр своих карт для клиента.
+    '''Business: CRUD и спец-действия (block/unblock/topup/move/refuel) топливных карт для менеджера,
+    просмотр своих карт для клиента. Все мутации фиксируются в журнале fuel_card_operations.
     Args: event с httpMethod, body, headers, queryStringParameters; context с request_id.
     Returns: HTTP JSON ответ со списком/объектом карты либо ошибкой.
     '''
@@ -199,6 +269,16 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             c = cur.fetchone()
             if not c:
                 return response(404, {'error': 'Карта не найдена'})
+
+            fuel_info = get_fuel_info(cur, c['fuel_type_id'])
+            client_name = get_client_name(cur, c['client_id'])
+            number = card_number_str(c['code'], c['idx'])
+            comment = f'Блокировка карты. Причина: {reason}' if reason else 'Блокировка карты'
+            log_operation(
+                cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
+                None, '', 'block', 0, 0, 0, comment,
+            )
+
             return response(200, card_row_to_json(c))
 
         if method == 'POST' and action == 'unblock':
@@ -214,6 +294,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             c = cur.fetchone()
             if not c:
                 return response(404, {'error': 'Карта не найдена'})
+
+            fuel_info = get_fuel_info(cur, c['fuel_type_id'])
+            client_name = get_client_name(cur, c['client_id'])
+            number = card_number_str(c['code'], c['idx'])
+            log_operation(
+                cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
+                None, '', 'unblock', 0, 0, 0, 'Разблокировка карты',
+            )
+
             return response(200, card_row_to_json(c))
 
         if method == 'POST' and action == 'topup':
@@ -236,6 +325,70 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             c = cur.fetchone()
             if not c:
                 return response(404, {'error': 'Карта не найдена'})
+
+            fuel_info = get_fuel_info(cur, c['fuel_type_id'])
+            client_name = get_client_name(cur, c['client_id'])
+            number = card_number_str(c['code'], c['idx'])
+            unit = unit_short(fuel_info['unit'])
+            price = float(fuel_info['price'] or 0)
+            amount_sum = round(amount * price, 2)
+            comment = f'Пополнение баланса: +{amount:.3f} {unit} ({fuel_info["name"]})'
+            log_operation(
+                cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
+                None, '', 'topup', amount, price, amount_sum, comment,
+            )
+
+            return response(200, card_row_to_json(c))
+
+        if method == 'POST' and action == 'refuel':
+            body_data = json.loads(event.get('body') or '{}')
+            cid = body_data.get('id')
+            station_id = body_data.get('station_id')
+            quantity = body_data.get('quantity')
+            custom_price = body_data.get('price')
+            if not cid or not station_id or quantity is None:
+                return response(400, {'error': 'Не указана карта, АЗС или количество'})
+            try:
+                quantity = float(quantity)
+            except (TypeError, ValueError):
+                return response(400, {'error': 'Некорректное количество'})
+            if quantity <= 0:
+                return response(400, {'error': 'Количество должно быть положительным'})
+
+            cur.execute('SELECT id, code, idx, fuel_type_id, client_id, balance FROM fuel_cards WHERE id = %s', (cid,))
+            card = cur.fetchone()
+            if not card:
+                return response(404, {'error': 'Карта не найдена'})
+            if float(card['balance']) < quantity:
+                return response(400, {'error': 'Недостаточно средств на карте'})
+
+            station_name = get_station_name(cur, station_id)
+            if not station_name:
+                return response(404, {'error': 'АЗС не найдена'})
+
+            fuel_info = get_fuel_info(cur, card['fuel_type_id'])
+            unit = unit_short(fuel_info['unit'])
+            try:
+                price = float(custom_price) if custom_price is not None else float(fuel_info['price'] or 0)
+            except (TypeError, ValueError):
+                price = float(fuel_info['price'] or 0)
+            amount_sum = round(quantity * price, 2)
+
+            cur.execute(
+                'UPDATE fuel_cards SET balance = balance - %s WHERE id = %s '
+                'RETURNING id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at',
+                (quantity, cid),
+            )
+            c = cur.fetchone()
+
+            client_name = get_client_name(cur, c['client_id'])
+            number = card_number_str(c['code'], c['idx'])
+            comment = f'Заправка на АЗС «{station_name}»: списано {quantity:.3f} {unit} ({fuel_info["name"]}) по цене {price:.2f} ₽, на сумму {amount_sum:.2f} ₽'
+            log_operation(
+                cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
+                station_id, station_name, 'refuel', quantity, price, amount_sum, comment,
+            )
+
             return response(200, card_row_to_json(c))
 
         if method == 'POST' and action == 'move':
@@ -255,14 +408,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             if str(from_id) == str(to_id):
                 return response(400, {'error': 'Карты должны различаться'})
 
-            cur.execute('SELECT id, balance, fuel_type_id FROM fuel_cards WHERE id = %s', (from_id,))
+            cur.execute('SELECT id, code, idx, client_id, balance, fuel_type_id FROM fuel_cards WHERE id = %s', (from_id,))
             src = cur.fetchone()
             if not src:
                 return response(404, {'error': 'Карта-источник не найдена'})
             if float(src['balance']) < amount:
                 return response(400, {'error': 'Недостаточно средств на карте'})
 
-            cur.execute('SELECT id, fuel_type_id FROM fuel_cards WHERE id = %s', (to_id,))
+            cur.execute('SELECT id, code, idx, client_id, fuel_type_id FROM fuel_cards WHERE id = %s', (to_id,))
             dst = cur.fetchone()
             if not dst:
                 return response(404, {'error': 'Карта назначения не найдена'})
@@ -282,6 +435,39 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
             cur.execute('UPDATE fuel_cards SET balance = balance - %s WHERE id = %s', (amount, from_id))
             cur.execute('UPDATE fuel_cards SET balance = balance + %s WHERE id = %s', (to_amount, to_id))
+
+            src_fuel = get_fuel_info(cur, src['fuel_type_id'])
+            dst_fuel = get_fuel_info(cur, dst['fuel_type_id'])
+            src_client_name = get_client_name(cur, src['client_id'])
+            dst_client_name = get_client_name(cur, dst['client_id'])
+            src_number = card_number_str(src['code'], src['idx'])
+            dst_number = card_number_str(dst['code'], dst['idx'])
+            src_unit = unit_short(src_fuel['unit'])
+            dst_unit = unit_short(dst_fuel['unit'])
+            src_price = float(src_fuel['price'] or 0)
+            dst_price = float(dst_fuel['price'] or 0)
+
+            if str(src['fuel_type_id']) == str(dst['fuel_type_id']):
+                src_comment = f'Перемещение: списание {amount:.3f} {src_unit} ({src_fuel["name"]}) -> карта {dst_number} ({dst_client_name})'
+                dst_comment = f'Перемещение: оприходование {to_amount:.3f} {dst_unit} ({dst_fuel["name"]}) с карты {src_number} ({src_client_name})'
+            else:
+                src_comment = (
+                    f'Перемещение: списание {amount:.3f} {src_unit} ({src_fuel["name"]}) -> карта {dst_number} ({dst_client_name}), '
+                    f'оприходовано {to_amount:.3f} {dst_unit} ({dst_fuel["name"]})'
+                )
+                dst_comment = (
+                    f'Перемещение: оприходование {to_amount:.3f} {dst_unit} ({dst_fuel["name"]}) с карты {src_number} ({src_client_name}), '
+                    f'списано {amount:.3f} {src_unit} ({src_fuel["name"]})'
+                )
+
+            log_operation(
+                cur, from_id, src_number, src['client_id'], src_client_name, src['fuel_type_id'], src_fuel['name'],
+                None, '', 'move_out', amount, src_price, round(amount * src_price, 2), src_comment,
+            )
+            log_operation(
+                cur, to_id, dst_number, dst['client_id'], dst_client_name, dst['fuel_type_id'], dst_fuel['name'],
+                None, '', 'move_in', to_amount, dst_price, round(to_amount * dst_price, 2), dst_comment,
+            )
 
             cur.execute(
                 'SELECT id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit, activated_at, blocked_at '
@@ -317,6 +503,15 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             )
             new_card = cur.fetchone()
 
+            fuel_info = get_fuel_info(cur, fuel_type_id)
+            client_name = get_client_name(cur, client_id)
+            number = card_number_str(code, idx)
+            log_operation(
+                cur, new_card['id'], number, client_id, client_name, fuel_type_id, fuel_info['name'],
+                None, '', 'create', 0, 0, 0,
+                f'Создание карты {number} для клиента {client_name}, вид топлива {fuel_info["name"]}',
+            )
+
             created = [card_row_to_json(new_card)]
 
             if code != '0000':
@@ -347,12 +542,35 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             c = cur.fetchone()
             if not c:
                 return response(404, {'error': 'Карта не найдена'})
+
+            fuel_info = get_fuel_info(cur, c['fuel_type_id'])
+            client_name = get_client_name(cur, c['client_id'])
+            number = card_number_str(c['code'], c['idx'])
+            unit = unit_short(fuel_info['unit'])
+            comment = f'Изменение карты: дневной лимит {c["daily_limit"]} {unit}, баланс {c["balance"]} {unit}, клиент {client_name}, топливо {fuel_info["name"]}'
+            log_operation(
+                cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
+                None, '', 'update', 0, 0, 0, comment,
+            )
+
             return response(200, card_row_to_json(c))
 
         if method == 'DELETE':
             cid = params.get('id')
             if not cid:
                 return response(400, {'error': 'Не указан id'})
+
+            cur.execute('SELECT id, code, idx, fuel_type_id, client_id FROM fuel_cards WHERE id = %s', (cid,))
+            old = cur.fetchone()
+            if old:
+                fuel_info = get_fuel_info(cur, old['fuel_type_id'])
+                client_name = get_client_name(cur, old['client_id'])
+                number = card_number_str(old['code'], old['idx'])
+                log_operation(
+                    cur, old['id'], number, old['client_id'], client_name, old['fuel_type_id'], fuel_info['name'],
+                    None, '', 'delete', 0, 0, 0, f'Удаление карты {number}',
+                )
+
             cur.execute('DELETE FROM fuel_cards WHERE id = %s', (cid,))
             return response(200, {'ok': True})
 

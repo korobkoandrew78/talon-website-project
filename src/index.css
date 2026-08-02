@@ -152,3 +152,27 @@
     transform: none;
   }
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  #print-journal,
+  #print-journal * {
+    visibility: visible;
+  }
+  #print-journal {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+  #print-journal table {
+    color: #000;
+  }
+  #print-journal th,
+  #print-journal td {
+    color: #000 !important;
+    border-color: #ccc !important;
+  }
+}

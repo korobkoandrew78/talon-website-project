@@ -1,0 +1,1 @@
+UPDATE managers SET sections = array_append(sections, 'operations') WHERE login = 'ivanov' AND NOT ('operations' = ANY(sections));

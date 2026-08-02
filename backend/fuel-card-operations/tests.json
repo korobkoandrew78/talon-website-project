@@ -1,0 +1,28 @@
+{
+  "testCases": [
+    {
+      "name": "CORS preflight",
+      "method": "OPTIONS",
+      "headers": {},
+      "queryStringParameters": {},
+      "body": null,
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET without token returns 401",
+      "method": "GET",
+      "headers": {},
+      "queryStringParameters": {},
+      "body": null,
+      "expectedStatus": 401
+    },
+    {
+      "name": "POST not allowed",
+      "method": "POST",
+      "headers": {"Content-Type": "application/json"},
+      "queryStringParameters": {},
+      "body": "{}",
+      "expectedStatus": 401
+    }
+  ]
+}

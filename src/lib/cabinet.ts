@@ -6,6 +6,7 @@ export type SectionKey =
   | 'stations'
   | 'clients'
   | 'fuelCards'
+  | 'operations'
   | 'discountCards'
   | 'coupons';
 
@@ -20,6 +21,7 @@ export const SECTIONS: SectionMeta[] = [
   { key: 'stations', label: 'АЗС', icon: 'MapPin' },
   { key: 'clients', label: 'Клиенты', icon: 'Users' },
   { key: 'fuelCards', label: 'Топливные карты', icon: 'CreditCard' },
+  { key: 'operations', label: 'Операции', icon: 'ListOrdered' },
   { key: 'discountCards', label: 'Бонусные карты', icon: 'BadgePercent' },
   { key: 'coupons', label: 'Талоны', icon: 'Ticket' },
 ];
@@ -116,6 +118,48 @@ export interface DiscountCard {
   discount: number; // %
   bonus: number; // накопленные бонусы
   status: CardStatus;
+}
+
+// ——— Журнал операций по топливным картам ———
+export type OperationType =
+  | 'topup'
+  | 'refuel'
+  | 'move_out'
+  | 'move_in'
+  | 'block'
+  | 'unblock'
+  | 'create'
+  | 'update'
+  | 'delete';
+
+export const OPERATION_LABELS: Record<OperationType, string> = {
+  topup: 'Пополнение',
+  refuel: 'Заправка',
+  move_out: 'Перемещение (списание)',
+  move_in: 'Перемещение (оприходование)',
+  block: 'Блокировка',
+  unblock: 'Разблокировка',
+  create: 'Создание',
+  update: 'Изменение',
+  delete: 'Удаление',
+};
+
+export interface FuelCardOperation {
+  id: string;
+  createdAt: string; // ISO datetime
+  fuelCardId: string;
+  cardNumber: string;
+  clientId: string;
+  clientName: string;
+  fuelTypeId: string;
+  fuelName: string;
+  stationId: string;
+  stationName: string;
+  operation: OperationType;
+  quantity: number;
+  price: number;
+  amount: number;
+  comment: string;
 }
 
 // ——— Талоны ———

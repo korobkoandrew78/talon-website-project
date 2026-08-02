@@ -14,6 +14,7 @@ import {
   FuelCard,
   DiscountCard,
   Coupon,
+  FuelCardOperation,
 } from './cabinet';
 import { api, Paginated, getToken, getRole, clearAuth } from './api';
 
@@ -27,6 +28,16 @@ const handleAuthError = (e: unknown) => {
     window.location.href = '/';
   }
 };
+
+export interface OperationsFilter {
+  dateFrom?: string;
+  dateTo?: string;
+  clientId?: string;
+  fuelTypeId?: string;
+  stationId?: string;
+  operation?: string;
+  card?: string;
+}
 
 interface Store {
   managers: Manager[];
@@ -43,8 +54,11 @@ interface Store {
   loadingDiscountCards: boolean;
   coupons: Coupon[];
   loadingCoupons: boolean;
+  operations: FuelCardOperation[];
+  loadingOperations: boolean;
 
   refreshAll: () => Promise<void>;
+  fetchOperations: (filter: OperationsFilter) => Promise<FuelCardOperation[]>;
 
   createManager: (data: Omit<Manager, 'id'>) => Promise<Manager>;
   updateManager: (id: string, data: Omit<Manager, 'id'>) => Promise<Manager>;
@@ -84,6 +98,7 @@ interface Store {
   blockFuelCard: (id: string, reason: string) => Promise<FuelCard>;
   unblockFuelCard: (id: string) => Promise<FuelCard>;
   topupFuelCard: (id: string, amount: number) => Promise<FuelCard>;
+  refuelFuelCard: (id: string, stationId: string, quantity: number, price?: number) => Promise<FuelCard>;
   moveFuelCard: (fromId: string, toId: string, amount: number, toAmount?: number) => Promise<FuelCard[]>;
 
   createDiscountCard: (data: Omit<DiscountCard, 'id'>) => Promise<DiscountCard>;
@@ -112,6 +127,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [loadingDiscountCards, setLoadingDiscountCards] = useState(false);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [loadingCoupons, setLoadingCoupons] = useState(false);
+  const [operations, setOperations] = useState<FuelCardOperation[]>([]);
+  const [loadingOperations, setLoadingOperations] = useState(false);
 
   // ——— Загрузка списков ———
 
@@ -209,6 +226,31 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       throw e;
     } finally {
       setLoadingCoupons(false);
+    }
+  }, []);
+
+  const fetchOperations = useCallback(async (filter: OperationsFilter) => {
+    setLoadingOperations(true);
+    try {
+      const res = await api<Paginated<FuelCardOperation>>('fuel-card-operations', {
+        query: {
+          limit: 1000,
+          date_from: filter.dateFrom,
+          date_to: filter.dateTo,
+          client_id: filter.clientId,
+          fuel_type_id: filter.fuelTypeId,
+          station_id: filter.stationId,
+          operation: filter.operation,
+          card: filter.card,
+        },
+      });
+      setOperations(res.items);
+      return res.items;
+    } catch (e) {
+      handleAuthError(e);
+      throw e;
+    } finally {
+      setLoadingOperations(false);
     }
   }, []);
 
@@ -384,6 +426,16 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     return c;
   }, [refreshFuelCards]);
 
+  const refuelFuelCard = useCallback(async (id: string, stationId: string, quantity: number, price?: number) => {
+    const c = await api<FuelCard>('fuel-cards', {
+      method: 'POST',
+      query: { action: 'refuel' },
+      body: { id, station_id: stationId, quantity, price },
+    });
+    await refreshFuelCards();
+    return c;
+  }, [refreshFuelCards]);
+
   const moveFuelCard = useCallback(async (fromId: string, toId: string, amount: number, toAmount?: number) => {
     const res = await api<{ items: FuelCard[] }>('fuel-cards', {
       method: 'POST',
@@ -449,8 +501,11 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         loadingDiscountCards,
         coupons,
         loadingCoupons,
+        operations,
+        loadingOperations,
 
         refreshAll,
+        fetchOperations,
 
         createManager,
         updateManager,
@@ -474,6 +529,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         blockFuelCard,
         unblockFuelCard,
         topupFuelCard,
+        refuelFuelCard,
         moveFuelCard,
 
         createDiscountCard,
