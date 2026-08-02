@@ -48,6 +48,19 @@ export interface FuelType {
   unit: Unit;
 }
 
+// Короткое отображение единицы измерения (литр → л, шт → шт, руб → ₽).
+export const unitShort = (unit: Unit | string): string => {
+  switch (unit) {
+    case 'литр':
+      return 'л';
+    case 'руб':
+      return '₽';
+    case 'шт':
+    default:
+      return 'шт';
+  }
+};
+
 // ——— Клиенты ———
 export type ClientSection = 'fuelCards' | 'discountCards' | 'coupons';
 

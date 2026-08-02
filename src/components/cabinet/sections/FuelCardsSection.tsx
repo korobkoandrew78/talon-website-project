@@ -9,6 +9,7 @@ import {
   cardNumber,
   isBalanceCard,
   today,
+  unitShort,
 } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
@@ -71,7 +72,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const [fFuel, setFFuel] = useState('');
 
   const fuelName = (id: string) => fuelTypes.find((f) => f.id === id)?.name ?? '—';
-  const fuelUnit = (id: string) => fuelTypes.find((f) => f.id === id)?.unit ?? 'руб';
+  const fuelUnit = (id: string) => unitShort(fuelTypes.find((f) => f.id === id)?.unit ?? 'руб');
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '—';
 
   const scoped = useMemo(

@@ -4,7 +4,7 @@ import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
 import { ApiError } from '@/lib/api';
-import { FuelType, Unit } from '@/lib/cabinet';
+import { FuelType, Unit, unitShort } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls } from '@/components/cabinet/Field';
@@ -85,7 +85,7 @@ const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                   <td className="px-4 py-3 font-medium">{f.name}</td>
                   <td className="px-4 py-3 text-muted-foreground">{f.code1c}</td>
                   <td className="px-4 py-3">{f.price.toLocaleString('ru-RU')} ₽</td>
-                  <td className="px-4 py-3 text-muted-foreground">{f.unit}</td>
+                  <td className="px-4 py-3 text-muted-foreground">{unitShort(f.unit)}</td>
                   {!readOnly && (
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
