@@ -9,6 +9,7 @@ import {
 import {
   Manager,
   FuelType,
+  Station,
   Client,
   FuelCard,
   DiscountCard,
@@ -34,6 +35,8 @@ interface Store {
   loadingClients: boolean;
   fuelTypes: FuelType[];
   loadingFuelTypes: boolean;
+  stations: Station[];
+  loadingStations: boolean;
   fuelCards: FuelCard[];
   loadingFuelCards: boolean;
   discountCards: DiscountCard[];
@@ -54,6 +57,10 @@ interface Store {
   createFuelType: (data: Omit<FuelType, 'id'>) => Promise<FuelType>;
   updateFuelType: (id: string, data: Omit<FuelType, 'id'>) => Promise<FuelType>;
   deleteFuelType: (id: string) => Promise<void>;
+
+  createStation: (data: Omit<Station, 'id'>) => Promise<Station>;
+  updateStation: (id: string, data: Omit<Station, 'id'>) => Promise<Station>;
+  deleteStation: (id: string) => Promise<void>;
 
   createFuelCard: (payload: {
     code: string;
@@ -97,6 +104,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const [loadingClients, setLoadingClients] = useState(false);
   const [fuelTypes, setFuelTypes] = useState<FuelType[]>([]);
   const [loadingFuelTypes, setLoadingFuelTypes] = useState(false);
+  const [stations, setStations] = useState<Station[]>([]);
+  const [loadingStations, setLoadingStations] = useState(false);
   const [fuelCards, setFuelCards] = useState<FuelCard[]>([]);
   const [loadingFuelCards, setLoadingFuelCards] = useState(false);
   const [discountCards, setDiscountCards] = useState<DiscountCard[]>([]);
@@ -142,6 +151,19 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
       throw e;
     } finally {
       setLoadingFuelTypes(false);
+    }
+  }, []);
+
+  const refreshStations = useCallback(async () => {
+    setLoadingStations(true);
+    try {
+      const res = await api<Paginated<Station>>('stations', { query: LIST_QUERY });
+      setStations(res.items);
+    } catch (e) {
+      handleAuthError(e);
+      throw e;
+    } finally {
+      setLoadingStations(false);
     }
   }, []);
 
@@ -198,6 +220,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     } else if (role === 'manager') {
       await Promise.all([
         refreshFuelTypes(),
+        refreshStations(),
         refreshClients(),
         refreshFuelCards(),
         refreshDiscountCards(),
@@ -211,7 +234,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         refreshCoupons(),
       ]);
     }
-  }, [refreshManagers, refreshFuelTypes, refreshClients, refreshFuelCards, refreshDiscountCards, refreshCoupons]);
+  }, [refreshManagers, refreshFuelTypes, refreshStations, refreshClients, refreshFuelCards, refreshDiscountCards, refreshCoupons]);
 
   useEffect(() => {
     if (getToken()) {
@@ -276,6 +299,25 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     await api('fuel-types', { method: 'DELETE', query: { id } });
     await refreshFuelTypes();
   }, [refreshFuelTypes]);
+
+  // ——— АЗС ———
+
+  const createStation = useCallback(async (data: Omit<Station, 'id'>) => {
+    const s = await api<Station>('stations', { method: 'POST', body: data });
+    await refreshStations();
+    return s;
+  }, [refreshStations]);
+
+  const updateStation = useCallback(async (id: string, data: Omit<Station, 'id'>) => {
+    const s = await api<Station>('stations', { method: 'PUT', body: { id, ...data } });
+    await refreshStations();
+    return s;
+  }, [refreshStations]);
+
+  const deleteStation = useCallback(async (id: string) => {
+    await api('stations', { method: 'DELETE', query: { id } });
+    await refreshStations();
+  }, [refreshStations]);
 
   // ——— Топливные карты ———
 
@@ -399,6 +441,8 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         loadingClients,
         fuelTypes,
         loadingFuelTypes,
+        stations,
+        loadingStations,
         fuelCards,
         loadingFuelCards,
         discountCards,
@@ -419,6 +463,10 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         createFuelType,
         updateFuelType,
         deleteFuelType,
+
+        createStation,
+        updateStation,
+        deleteStation,
 
         createFuelCard,
         updateFuelCard,

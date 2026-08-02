@@ -3,6 +3,7 @@ import CabinetShell from '@/components/cabinet/CabinetShell';
 import { useAuthGuard } from '@/hooks/use-auth-guard';
 import { SECTIONS, SectionKey } from '@/lib/cabinet';
 import FuelTypesSection from '@/components/cabinet/sections/FuelTypesSection';
+import StationsSection from '@/components/cabinet/sections/StationsSection';
 import ClientsSection from '@/components/cabinet/sections/ClientsSection';
 import FuelCardsSection from '@/components/cabinet/sections/FuelCardsSection';
 import DiscountCardsSection from '@/components/cabinet/sections/DiscountCardsSection';
@@ -35,6 +36,8 @@ const Manager = () => {
     switch (currentActive) {
       case 'fuel':
         return <FuelTypesSection readOnly={readOnly} />;
+      case 'stations':
+        return <StationsSection readOnly={readOnly} />;
       case 'clients':
         return <ClientsSection readOnly={readOnly} />;
       case 'fuelCards':

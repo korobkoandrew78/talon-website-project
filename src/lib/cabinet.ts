@@ -3,6 +3,7 @@
 
 export type SectionKey =
   | 'fuel'
+  | 'stations'
   | 'clients'
   | 'fuelCards'
   | 'discountCards'
@@ -16,6 +17,7 @@ export interface SectionMeta {
 
 export const SECTIONS: SectionMeta[] = [
   { key: 'fuel', label: 'Виды топлива', icon: 'Fuel' },
+  { key: 'stations', label: 'АЗС', icon: 'MapPin' },
   { key: 'clients', label: 'Клиенты', icon: 'Users' },
   { key: 'fuelCards', label: 'Топливные карты', icon: 'CreditCard' },
   { key: 'discountCards', label: 'Бонусные карты', icon: 'BadgePercent' },
@@ -60,6 +62,14 @@ export const unitShort = (unit: Unit | string): string => {
       return 'шт';
   }
 };
+
+// ——— АЗС ———
+export interface Station {
+  id: string;
+  name: string;
+  code1c: string;
+  address: string;
+}
 
 // ——— Клиенты ———
 export type ClientSection = 'fuelCards' | 'discountCards' | 'coupons';
