@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import CabinetShell from '@/components/cabinet/CabinetShell';
-import { useStore } from '@/lib/store';
+import { useAuthGuard } from '@/hooks/use-auth-guard';
 import { SECTIONS, SectionKey } from '@/lib/cabinet';
 import FuelTypesSection from '@/components/cabinet/sections/FuelTypesSection';
 import ClientsSection from '@/components/cabinet/sections/ClientsSection';
@@ -8,21 +8,31 @@ import FuelCardsSection from '@/components/cabinet/sections/FuelCardsSection';
 import DiscountCardsSection from '@/components/cabinet/sections/DiscountCardsSection';
 import CouponsSection from '@/components/cabinet/sections/CouponsSection';
 
+interface ManagerUser {
+  id: string;
+  login: string;
+  fullName: string;
+  phone: string;
+  status: 'active' | 'blocked';
+  readOnly: boolean;
+  sections: SectionKey[];
+}
+
 const Manager = () => {
-  const { managers } = useStore();
+  const { user: manager, loading } = useAuthGuard<ManagerUser>('manager');
 
-  // Демонстрационный кабинет: берём первого активного менеджера.
-  const manager = useMemo(
-    () => managers.find((m) => m.status === 'active') ?? managers[0],
-    [managers],
+  const available = useMemo(
+    () => SECTIONS.filter((s) => manager?.sections.includes(s.key)),
+    [manager],
   );
-
-  const available = SECTIONS.filter((s) => manager?.sections.includes(s.key));
-  const [active, setActive] = useState<SectionKey>(available[0]?.key ?? 'fuel');
+  const [active, setActive] = useState<SectionKey | null>(null);
   const readOnly = manager?.readOnly ?? false;
+  const currentActive = active ?? available[0]?.key ?? 'fuel';
+
+  if (loading || !manager) return null;
 
   const render = () => {
-    switch (active) {
+    switch (currentActive) {
       case 'fuel':
         return <FuelTypesSection readOnly={readOnly} />;
       case 'clients':
@@ -42,7 +52,7 @@ const Manager = () => {
     <CabinetShell
       role={`Кабинет менеджера${readOnly ? ' · только просмотр' : ''}`}
       nav={available.map((s) => ({ key: s.key, label: s.label, icon: s.icon }))}
-      active={active}
+      active={currentActive}
       onNavigate={(k) => setActive(k as SectionKey)}
     >
       {available.length === 0 ? (

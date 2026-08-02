@@ -1,0 +1,9 @@
+{
+  "discount-cards": "https://functions.poehali.dev/08c90c97-dcbb-404b-b4e2-cc4a93b5007a",
+  "fuel-types": "https://functions.poehali.dev/46303bd5-5c6e-4a05-9af6-1cf4aad14576",
+  "clients": "https://functions.poehali.dev/3b824cfb-ed60-4f06-97dc-7d7aba5f3d2f",
+  "auth": "https://functions.poehali.dev/56b762c9-4e9b-4a77-8159-2ca4c9f05ed0",
+  "fuel-cards": "https://functions.poehali.dev/390e7515-eb07-41f2-be58-b61e95435b94",
+  "managers": "https://functions.poehali.dev/2038f0f5-1b8a-4a78-99aa-30c966da29e2",
+  "coupons": "https://functions.poehali.dev/b0e30746-1d2f-4c9a-8dac-1b1b4137890c"
+}

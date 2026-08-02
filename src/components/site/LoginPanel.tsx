@@ -1,39 +1,39 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
+import { api, setAuth, ApiError } from '@/lib/api';
 import { useStore } from '@/lib/store';
-
-const ADMIN_LOGIN = 'Pi0neer78';
-const ADMIN_PASSWORD = 'Tytparol1!';
 
 const LoginPanel = () => {
   const navigate = useNavigate();
-  const { managers, clients } = useStore();
+  const { refreshAll } = useStore();
   const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [showPass, setShowPass] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (login === ADMIN_LOGIN && password === ADMIN_PASSWORD) {
-      setError('');
-      navigate('/admin');
-      return;
+    if (submitting) return;
+    setError('');
+    setSubmitting(true);
+    try {
+      const res = await api<{ token: string; role: 'admin' | 'manager' | 'client'; user: unknown }>('auth', {
+        method: 'POST',
+        body: { login, password },
+      });
+      setAuth(res.token, res.role);
+      await refreshAll();
+      if (res.role === 'admin') navigate('/admin');
+      else if (res.role === 'manager') navigate('/manager');
+      else navigate('/client');
+    } catch (err) {
+      if (err instanceof ApiError) setError(err.message);
+      else setError('Не удалось выполнить вход');
+    } finally {
+      setSubmitting(false);
     }
-    const manager = managers.find((m) => m.login === login && m.password === password);
-    if (manager) {
-      setError('');
-      navigate('/manager');
-      return;
-    }
-    const client = clients.find((c) => c.login === login && c.password === password);
-    if (client) {
-      setError('');
-      navigate('/client');
-      return;
-    }
-    setError('Неверный логин или пароль');
   };
 
   return (
@@ -103,9 +103,10 @@ const LoginPanel = () => {
 
       <button
         type="submit"
-        className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-sm font-semibold text-accent-foreground transition-all hover:-translate-y-0.5 hover:brightness-110"
+        disabled={submitting}
+        className="mt-6 flex w-full items-center justify-center gap-2 rounded-full bg-accent py-3.5 text-sm font-semibold text-accent-foreground transition-all hover:-translate-y-0.5 hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
       >
-        Войти в личный кабинет
+        {submitting ? 'Входим…' : 'Войти в личный кабинет'}
         <Icon name="ArrowRight" size={17} />
       </button>
 

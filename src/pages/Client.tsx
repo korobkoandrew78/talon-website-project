@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import CabinetShell from '@/components/cabinet/CabinetShell';
 import Icon from '@/components/ui/icon';
-import { useStore } from '@/lib/store';
+import { useAuthGuard } from '@/hooks/use-auth-guard';
 import { ClientSection } from '@/lib/cabinet';
 import FuelCardsSection from '@/components/cabinet/sections/FuelCardsSection';
 import DiscountCardsSection from '@/components/cabinet/sections/DiscountCardsSection';
@@ -13,29 +13,39 @@ const SECTION_META: Record<ClientSection, { label: string; icon: string }> = {
   coupons: { label: 'Талоны', icon: 'Ticket' },
 };
 
+interface ClientUser {
+  id: string;
+  inn: string;
+  name: string;
+  phone: string;
+  email: string;
+  login: string;
+  readOnly: boolean;
+  sections: ClientSection[];
+}
+
 const Client = () => {
-  const { clients } = useStore();
-  const client = clients[0]; // демонстрационный кабинет — первый клиент
+  const { user: client, loading } = useAuthGuard<ClientUser>('client');
 
   const available = useMemo(
     () => (client ? client.sections : []),
     [client],
   );
-  const [active, setActive] = useState<ClientSection>(available[0] ?? 'fuelCards');
+  const [active, setActive] = useState<ClientSection | null>(null);
   const readOnly = client?.readOnly ?? false;
+  const currentActive = active ?? available[0] ?? 'fuelCards';
 
-  const info = client
-    ? [
-        { icon: 'Hash', label: 'ИНН', value: client.inn },
-        { icon: 'Phone', label: 'Телефон', value: client.phone },
-        { icon: 'Mail', label: 'Почта', value: client.email },
-        { icon: 'User', label: 'Логин', value: client.login },
-      ]
-    : [];
+  if (loading || !client) return null;
+
+  const info = [
+    { icon: 'Hash', label: 'ИНН', value: client.inn },
+    { icon: 'Phone', label: 'Телефон', value: client.phone },
+    { icon: 'Mail', label: 'Почта', value: client.email },
+    { icon: 'User', label: 'Логин', value: client.login },
+  ];
 
   const render = () => {
-    if (!client) return null;
-    switch (active) {
+    switch (currentActive) {
       case 'fuelCards':
         return <FuelCardsSection readOnly={readOnly} clientId={client.id} />;
       case 'discountCards':
@@ -47,7 +57,7 @@ const Client = () => {
     }
   };
 
-  const topbar = client && (
+  const topbar = (
     <div className="mb-6 rounded-2xl border border-border bg-card p-6">
       <div className="flex flex-wrap items-center justify-between gap-4">
         <div>
@@ -80,7 +90,7 @@ const Client = () => {
     <CabinetShell
       role="Личный кабинет клиента"
       nav={available.map((k) => ({ key: k, label: SECTION_META[k].label, icon: SECTION_META[k].icon }))}
-      active={active}
+      active={currentActive}
       onNavigate={(k) => setActive(k as ClientSection)}
       topbar={topbar}
     >

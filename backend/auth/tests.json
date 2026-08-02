@@ -1,0 +1,36 @@
+{
+  "test_cases": [
+    {
+      "name": "CORS preflight",
+      "method": "OPTIONS",
+      "headers": {},
+      "queryStringParameters": {},
+      "body": null,
+      "expectedStatus": 200
+    },
+    {
+      "name": "GET without token returns 401",
+      "method": "GET",
+      "headers": {},
+      "queryStringParameters": {},
+      "body": null,
+      "expectedStatus": 401
+    },
+    {
+      "name": "POST with wrong credentials returns 401",
+      "method": "POST",
+      "headers": {"Content-Type": "application/json"},
+      "queryStringParameters": {},
+      "body": "{\"login\": \"nouser\", \"password\": \"wrong\"}",
+      "expectedStatus": 401
+    },
+    {
+      "name": "Admin login succeeds",
+      "method": "POST",
+      "headers": {"Content-Type": "application/json"},
+      "queryStringParameters": {},
+      "body": "{\"login\": \"Pi0neer78\", \"password\": \"Tytparol1!\"}",
+      "expectedStatus": 200
+    }
+  ]
+}

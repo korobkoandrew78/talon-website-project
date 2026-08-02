@@ -1,13 +1,14 @@
 import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
+import { ApiError } from '@/lib/api';
 import {
   FuelCard,
   cardNumber,
   isBalanceCard,
   today,
-  uid,
 } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
@@ -45,13 +46,25 @@ interface Props {
 }
 
 const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
-  const { fuelCards, setFuelCards, createFuelCard, fuelTypes, clients } = useStore();
+  const {
+    fuelCards,
+    loadingFuelCards,
+    fuelTypes,
+    clients,
+    createFuelCard,
+    updateFuelCard,
+    blockFuelCard,
+    unblockFuelCard,
+    topupFuelCard,
+    moveFuelCard,
+  } = useStore();
 
   const [mode, setMode] = useState<Mode>(null);
   const [draft, setDraft] = useState<FuelCard>(emptyCard());
   const [amount, setAmount] = useState(0);
   const [targetId, setTargetId] = useState('');
   const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const [fNumber, setFNumber] = useState('');
   const [fClient, setFClient] = useState('');
@@ -94,16 +107,19 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const openTopup = (c: FuelCard) => {
     setDraft({ ...c });
     setAmount(0);
+    setFormError('');
     setMode('topup');
   };
   const openMove = (c: FuelCard) => {
     setDraft({ ...c });
     setAmount(0);
     setTargetId('');
+    setFormError('');
     setMode('move');
   };
   const openBlock = (c: FuelCard) => {
     setDraft({ ...c, blockReason: '' });
+    setFormError('');
     setMode('block');
   };
 
@@ -112,7 +128,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
       (c) => c.code === code && c.index === index && c.id !== ignoreId,
     );
 
-  const saveCard = () => {
+  const saveCard = async () => {
     const code = draft.code.padStart(4, '0');
     if (!/^\d{4}$/.test(code)) {
       setFormError('Код карты — четыре цифры (например 0033)');
@@ -122,50 +138,82 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
       setFormError(`Карта ${code}/${draft.index} уже существует`);
       return;
     }
-    if (mode === 'edit') {
-      setFuelCards((p) => p.map((c) => (c.id === draft.id ? { ...draft, code } : c)));
-    } else {
-      createFuelCard({ ...draft, code, id: uid('fc') });
+    setSaving(true);
+    setFormError('');
+    try {
+      if (mode === 'edit') {
+        await updateFuelCard(draft.id, {
+          fuel_type_id: draft.fuelTypeId,
+          client_id: draft.clientId,
+          daily_limit: draft.dailyLimit,
+          balance: draft.balance,
+          code,
+          idx: draft.index,
+        });
+      } else {
+        await createFuelCard({
+          code,
+          idx: draft.index,
+          fuel_type_id: draft.fuelTypeId,
+          client_id: draft.clientId,
+          daily_limit: draft.dailyLimit,
+        });
+      }
+      setMode(null);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось сохранить карту');
+    } finally {
+      setSaving(false);
     }
-    setMode(null);
   };
 
-  const doTopup = () => {
-    setFuelCards((p) =>
-      p.map((c) => (c.id === draft.id ? { ...c, balance: c.balance + amount } : c)),
-    );
-    setMode(null);
+  const doTopup = async () => {
+    setSaving(true);
+    setFormError('');
+    try {
+      await topupFuelCard(draft.id, amount);
+      setMode(null);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось пополнить баланс');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const doMove = () => {
+  const doMove = async () => {
     if (!targetId || amount <= 0) return;
-    setFuelCards((p) =>
-      p.map((c) => {
-        if (c.id === draft.id) return { ...c, balance: c.balance - amount };
-        if (c.id === targetId) return { ...c, balance: c.balance + amount };
-        return c;
-      }),
-    );
-    setMode(null);
+    setSaving(true);
+    setFormError('');
+    try {
+      await moveFuelCard(draft.id, targetId, amount);
+      setMode(null);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось переместить топливо');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const doBlock = () => {
-    setFuelCards((p) =>
-      p.map((c) =>
-        c.id === draft.id
-          ? { ...c, status: 'blocked', blockReason: draft.blockReason, blockedAt: today() }
-          : c,
-      ),
-    );
-    setMode(null);
+  const doBlock = async () => {
+    setSaving(true);
+    setFormError('');
+    try {
+      await blockFuelCard(draft.id, draft.blockReason);
+      setMode(null);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось заблокировать карту');
+    } finally {
+      setSaving(false);
+    }
   };
 
-  const unblock = (c: FuelCard) =>
-    setFuelCards((p) =>
-      p.map((x) =>
-        x.id === c.id ? { ...x, status: 'active', blockReason: '', blockedAt: '' } : x,
-      ),
-    );
+  const unblock = async (c: FuelCard) => {
+    try {
+      await unblockFuelCard(c.id);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось разблокировать карту');
+    }
+  };
 
   const moveTargets = scoped.filter(
     (c) => c.id !== draft.id && c.clientId === draft.clientId,
@@ -253,7 +301,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
               {pageItems.length === 0 && (
                 <tr>
                   <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
-                    Нет карт
+                    {loadingFuelCards ? 'Загрузка…' : 'Нет карт'}
                   </td>
                 </tr>
               )}
@@ -328,7 +376,13 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
           </div>
           <DialogFooter>
             <button onClick={() => setMode(null)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
-            <button onClick={saveCard} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground">Сохранить</button>
+            <button
+              onClick={saveCard}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -339,14 +393,25 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
           <DialogHeader>
             <DialogTitle>Пополнить баланс · {cardNumber(draft)}</DialogTitle>
           </DialogHeader>
-          <div className="py-2">
+          <div className="space-y-4 py-2">
             <Field label="Сумма пополнения, ₽">
               <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
             </Field>
+            {formError && mode === 'topup' && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <button onClick={() => setMode(null)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
-            <button onClick={doTopup} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground">Пополнить</button>
+            <button
+              onClick={doTopup}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Пополнение…' : 'Пополнить'}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -369,10 +434,21 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
             <Field label="Сумма, ₽">
               <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
             </Field>
+            {formError && mode === 'move' && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <button onClick={() => setMode(null)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
-            <button onClick={doMove} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground">Переместить</button>
+            <button
+              onClick={doMove}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Перемещение…' : 'Переместить'}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -383,14 +459,25 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
           <DialogHeader>
             <DialogTitle>Заблокировать карту · {cardNumber(draft)}</DialogTitle>
           </DialogHeader>
-          <div className="py-2">
+          <div className="space-y-4 py-2">
             <Field label="Причина блокировки">
               <input className={inputCls} value={draft.blockReason} onChange={(e) => setDraft({ ...draft, blockReason: e.target.value })} placeholder="Укажите причину" />
             </Field>
+            {formError && mode === 'block' && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <button onClick={() => setMode(null)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
-            <button onClick={doBlock} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground">Заблокировать</button>
+            <button
+              onClick={doBlock}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Блокировка…' : 'Заблокировать'}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

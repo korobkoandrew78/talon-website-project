@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Icon from '@/components/ui/icon';
 import { cn } from '@/lib/utils';
+import { api, clearAuth } from '@/lib/api';
 
 const LOGO =
   'https://cdn.poehali.dev/projects/cc75541e-6a4b-4243-9045-839da83c8672/bucket/288ee4f1-d06e-472f-b7f8-c10a8b03ae64.png';
@@ -34,7 +35,11 @@ const CabinetShell = ({ role, nav, active, onNavigate, children, topbar }: Props
           <span className="eyebrow hidden sm:block">{role}</span>
         </div>
         <button
-          onClick={() => navigate('/')}
+          onClick={() => {
+            api('auth', { method: 'DELETE' }).catch(() => {});
+            clearAuth();
+            navigate('/');
+          }}
           className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
         >
           <Icon name="LogOut" size={16} />

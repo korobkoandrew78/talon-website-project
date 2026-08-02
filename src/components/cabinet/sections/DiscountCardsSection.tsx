@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
-import { DiscountCard, uid } from '@/lib/cabinet';
+import { ApiError } from '@/lib/api';
+import { DiscountCard } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls } from '@/components/cabinet/Field';
@@ -22,9 +25,11 @@ interface Props {
 }
 
 const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
-  const { discountCards, setDiscountCards, clients } = useStore();
+  const { discountCards, loadingDiscountCards, clients, createDiscountCard, updateDiscountCard, deleteDiscountCard } = useStore();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DiscountCard>(empty());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '—';
   const scoped = useMemo(
@@ -35,19 +40,36 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
 
   const create = () => {
     setDraft({ ...empty(), clientId: clientId ?? clients[0]?.id ?? '' });
+    setFormError('');
     setOpen(true);
   };
   const edit = (d: DiscountCard) => {
     setDraft({ ...d });
+    setFormError('');
     setOpen(true);
   };
-  const save = () => {
+  const save = async () => {
     if (!draft.number.trim()) return;
-    if (draft.id) setDiscountCards((p) => p.map((d) => (d.id === draft.id ? draft : d)));
-    else setDiscountCards((p) => [...p, { ...draft, id: uid('d') }]);
-    setOpen(false);
+    setSaving(true);
+    setFormError('');
+    try {
+      const { id, ...data } = draft;
+      if (id) await updateDiscountCard(id, data);
+      else await createDiscountCard(data);
+      setOpen(false);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось сохранить карту');
+    } finally {
+      setSaving(false);
+    }
   };
-  const remove = (id: string) => setDiscountCards((p) => p.filter((d) => d.id !== id));
+  const remove = async (id: string) => {
+    try {
+      await deleteDiscountCard(id);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить карту');
+    }
+  };
 
   return (
     <>
@@ -89,7 +111,9 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
               ))}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">Нет карт</td>
+                  <td colSpan={6} className="px-4 py-10 text-center text-muted-foreground">
+                    {loadingDiscountCards ? 'Загрузка…' : 'Нет карт'}
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -140,10 +164,21 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
                 ))}
               </div>
             </Field>
+            {formError && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
-            <button onClick={save} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground">Сохранить</button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

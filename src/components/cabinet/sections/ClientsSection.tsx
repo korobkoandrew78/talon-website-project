@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
 import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
-import { Client, ClientSection as CS, uid } from '@/lib/cabinet';
+import { ApiError } from '@/lib/api';
+import { Client, ClientSection as CS } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls, SwitchRow } from '@/components/cabinet/Field';
@@ -35,9 +37,11 @@ const empty = (): Client => ({
 });
 
 const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
-  const { clients, setClients } = useStore();
+  const { clients, loadingClients, createClient, updateClient, deleteClient } = useStore();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Client>(empty());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
   const [fInn, setFInn] = useState('');
   const [fName, setFName] = useState('');
 
@@ -54,19 +58,36 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
 
   const edit = (c: Client) => {
     setDraft({ ...c });
+    setFormError('');
     setOpen(true);
   };
   const create = () => {
     setDraft(empty());
+    setFormError('');
     setOpen(true);
   };
-  const save = () => {
+  const save = async () => {
     if (!draft.name.trim() || !draft.inn.trim()) return;
-    if (draft.id) setClients((p) => p.map((c) => (c.id === draft.id ? draft : c)));
-    else setClients((p) => [...p, { ...draft, id: uid('c') }]);
-    setOpen(false);
+    setSaving(true);
+    setFormError('');
+    try {
+      const { id, ...data } = draft;
+      if (id) await updateClient(id, data);
+      else await createClient(data);
+      setOpen(false);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось сохранить клиента');
+    } finally {
+      setSaving(false);
+    }
   };
-  const remove = (id: string) => setClients((p) => p.filter((c) => c.id !== id));
+  const remove = async (id: string) => {
+    try {
+      await deleteClient(id);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить клиента');
+    }
+  };
 
   return (
     <>
@@ -133,7 +154,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
               {pageItems.length === 0 && (
                 <tr>
                   <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
-                    Нет записей
+                    {loadingClients ? 'Загрузка…' : 'Нет записей'}
                   </td>
                 </tr>
               )}
@@ -183,13 +204,22 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                 onChange={(v) => setDraft({ ...draft, sections: v as CS[] })}
               />
             </Field>
+            {formError && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">
               Отмена
             </button>
-            <button onClick={save} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground">
-              Сохранить
+            <button
+              onClick={save}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Сохранение…' : 'Сохранить'}
             </button>
           </DialogFooter>
         </DialogContent>

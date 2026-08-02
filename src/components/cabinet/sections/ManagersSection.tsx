@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
-import { Manager, SectionKey, uid } from '@/lib/cabinet';
+import { ApiError } from '@/lib/api';
+import { Manager, SectionKey } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls, SwitchRow } from '@/components/cabinet/Field';
@@ -29,26 +32,45 @@ const empty = (): Manager => ({
 });
 
 const ManagersSection = () => {
-  const { managers, setManagers } = useStore();
+  const { managers, loadingManagers, createManager, updateManager, deleteManager } = useStore();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Manager>(empty());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
   const { page, setPage, pageCount, pageItems } = usePagination(managers);
 
   const create = () => {
     setDraft(empty());
+    setFormError('');
     setOpen(true);
   };
   const edit = (m: Manager) => {
     setDraft({ ...m });
+    setFormError('');
     setOpen(true);
   };
-  const save = () => {
+  const save = async () => {
     if (!draft.login.trim() || !draft.fullName.trim()) return;
-    if (draft.id) setManagers((p) => p.map((m) => (m.id === draft.id ? draft : m)));
-    else setManagers((p) => [...p, { ...draft, id: uid('m') }]);
-    setOpen(false);
+    setSaving(true);
+    setFormError('');
+    try {
+      const { id, ...data } = draft;
+      if (id) await updateManager(id, data);
+      else await createManager(data);
+      setOpen(false);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось сохранить менеджера');
+    } finally {
+      setSaving(false);
+    }
   };
-  const remove = (id: string) => setManagers((p) => p.filter((m) => m.id !== id));
+  const remove = async (id: string) => {
+    try {
+      await deleteManager(id);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить менеджера');
+    }
+  };
 
   return (
     <>
@@ -92,7 +114,9 @@ const ManagersSection = () => {
               ))}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">Нет менеджеров</td>
+                  <td colSpan={8} className="px-4 py-10 text-center text-muted-foreground">
+                    {loadingManagers ? 'Загрузка…' : 'Нет менеджеров'}
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -140,10 +164,21 @@ const ManagersSection = () => {
                 onChange={(v) => setDraft({ ...draft, sections: v as SectionKey[] })}
               />
             </Field>
+            {formError && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
-            <button onClick={save} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground">Сохранить</button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

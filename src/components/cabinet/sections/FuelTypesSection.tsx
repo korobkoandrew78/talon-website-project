@@ -1,7 +1,10 @@
 import { useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
-import { FuelType, Unit, uid } from '@/lib/cabinet';
+import { ApiError } from '@/lib/api';
+import { FuelType, Unit } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls } from '@/components/cabinet/Field';
@@ -17,29 +20,45 @@ const UNITS: Unit[] = ['литр', 'шт', 'руб'];
 const empty = (): FuelType => ({ id: '', name: '', code1c: '', price: 0, unit: 'литр' });
 
 const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
-  const { fuelTypes, setFuelTypes } = useStore();
+  const { fuelTypes, loadingFuelTypes, createFuelType, updateFuelType, deleteFuelType } = useStore();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<FuelType>(empty());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
   const { page, setPage, pageCount, pageItems } = usePagination(fuelTypes);
 
   const edit = (f: FuelType) => {
     setDraft({ ...f });
+    setFormError('');
     setOpen(true);
   };
   const create = () => {
     setDraft(empty());
+    setFormError('');
     setOpen(true);
   };
-  const save = () => {
+  const save = async () => {
     if (!draft.name.trim()) return;
-    if (draft.id) {
-      setFuelTypes((p) => p.map((f) => (f.id === draft.id ? draft : f)));
-    } else {
-      setFuelTypes((p) => [...p, { ...draft, id: uid('f') }]);
+    setSaving(true);
+    setFormError('');
+    try {
+      const { id, ...data } = draft;
+      if (id) await updateFuelType(id, data);
+      else await createFuelType(data);
+      setOpen(false);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось сохранить вид топлива');
+    } finally {
+      setSaving(false);
     }
-    setOpen(false);
   };
-  const remove = (id: string) => setFuelTypes((p) => p.filter((f) => f.id !== id));
+  const remove = async (id: string) => {
+    try {
+      await deleteFuelType(id);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить вид топлива');
+    }
+  };
 
   return (
     <>
@@ -80,7 +99,7 @@ const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
               {pageItems.length === 0 && (
                 <tr>
                   <td colSpan={5} className="px-4 py-10 text-center text-muted-foreground">
-                    Нет записей
+                    {loadingFuelTypes ? 'Загрузка…' : 'Нет записей'}
                   </td>
                 </tr>
               )}
@@ -140,6 +159,11 @@ const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                 ))}
               </div>
             </Field>
+            {formError && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <button
@@ -150,9 +174,10 @@ const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
             </button>
             <button
               onClick={save}
-              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground"
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
-              Сохранить
+              {saving ? 'Сохранение…' : 'Сохранить'}
             </button>
           </DialogFooter>
         </DialogContent>

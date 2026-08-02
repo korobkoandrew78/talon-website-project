@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
+import { toast } from 'sonner';
+import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
-import { Coupon, today, uid } from '@/lib/cabinet';
+import { ApiError } from '@/lib/api';
+import { Coupon, today } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls } from '@/components/cabinet/Field';
@@ -31,9 +34,11 @@ interface Props {
 }
 
 const CouponsSection = ({ readOnly = false, clientId }: Props) => {
-  const { coupons, setCoupons, clients, fuelTypes } = useStore();
+  const { coupons, loadingCoupons, clients, fuelTypes, createCoupon, updateCoupon, deleteCoupon } = useStore();
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<Coupon>(empty());
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState('');
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '—';
   const fuelName = (id: string) => fuelTypes.find((f) => f.id === id)?.name ?? '—';
@@ -50,19 +55,36 @@ const CouponsSection = ({ readOnly = false, clientId }: Props) => {
       clientId: clientId ?? clients[0]?.id ?? '',
       fuelTypeId: fuelTypes[0]?.id ?? '',
     });
+    setFormError('');
     setOpen(true);
   };
   const edit = (t: Coupon) => {
     setDraft({ ...t });
+    setFormError('');
     setOpen(true);
   };
-  const save = () => {
+  const save = async () => {
     if (!draft.number.trim()) return;
-    if (draft.id) setCoupons((p) => p.map((t) => (t.id === draft.id ? draft : t)));
-    else setCoupons((p) => [...p, { ...draft, id: uid('t') }]);
-    setOpen(false);
+    setSaving(true);
+    setFormError('');
+    try {
+      const { id, ...data } = draft;
+      if (id) await updateCoupon(id, data);
+      else await createCoupon(data);
+      setOpen(false);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось сохранить талон');
+    } finally {
+      setSaving(false);
+    }
   };
-  const remove = (id: string) => setCoupons((p) => p.filter((t) => t.id !== id));
+  const remove = async (id: string) => {
+    try {
+      await deleteCoupon(id);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить талон');
+    }
+  };
 
   return (
     <>
@@ -110,7 +132,9 @@ const CouponsSection = ({ readOnly = false, clientId }: Props) => {
               ))}
               {pageItems.length === 0 && (
                 <tr>
-                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">Нет талонов</td>
+                  <td colSpan={7} className="px-4 py-10 text-center text-muted-foreground">
+                    {loadingCoupons ? 'Загрузка…' : 'Нет талонов'}
+                  </td>
                 </tr>
               )}
             </tbody>
@@ -166,10 +190,21 @@ const CouponsSection = ({ readOnly = false, clientId }: Props) => {
                 ))}
               </div>
             </Field>
+            {formError && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
           </div>
           <DialogFooter>
             <button onClick={() => setOpen(false)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
-            <button onClick={save} className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground">Сохранить</button>
+            <button
+              onClick={save}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Сохранение…' : 'Сохранить'}
+            </button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
