@@ -27,12 +27,12 @@ export const SwitchRow = ({
   checked: boolean;
   onChange: (v: boolean) => void;
 }) => (
-  <label className="flex cursor-pointer items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
+  <div className="flex items-center justify-between rounded-xl border border-border px-3.5 py-2.5">
     <span className="text-sm">{label}</span>
     <button
       type="button"
       onClick={() => onChange(!checked)}
-      className={`relative h-6 w-11 rounded-full transition-colors ${
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors ${
         checked ? 'bg-primary' : 'bg-secondary'
       }`}
       aria-pressed={checked}
@@ -43,5 +43,5 @@ export const SwitchRow = ({
         }`}
       />
     </button>
-  </label>
+  </div>
 );
