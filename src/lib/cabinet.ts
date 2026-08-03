@@ -74,7 +74,7 @@ export interface Station {
 }
 
 // ——— Клиенты ———
-export type ClientSection = 'fuelCards' | 'discountCards' | 'coupons';
+export type ClientSection = 'fuelCards' | 'discountCards' | 'coupons' | 'operations';
 
 // Клиент — реквизиты компании. Логин/пароль/доступ хранятся отдельно
 // в учётных записях (ClientAccount) — у одной компании их может быть несколько.
@@ -251,7 +251,7 @@ export const initialClientAccounts: ClientAccount[] = [
     login: 'autotrans',
     password: 'Client1!',
     readOnly: false,
-    sections: ['fuelCards', 'discountCards', 'coupons'],
+    sections: ['fuelCards', 'discountCards', 'coupons', 'operations'],
   },
   {
     id: 'ca_2',
@@ -259,7 +259,7 @@ export const initialClientAccounts: ClientAccount[] = [
     login: 'auto2',
     password: 'Client1View!',
     readOnly: true,
-    sections: ['fuelCards', 'coupons'],
+    sections: ['fuelCards', 'coupons', 'operations'],
   },
   {
     id: 'ca_3',
@@ -267,7 +267,7 @@ export const initialClientAccounts: ClientAccount[] = [
     login: 'stroypark',
     password: 'Client2!',
     readOnly: true,
-    sections: ['fuelCards', 'coupons'],
+    sections: ['fuelCards', 'coupons', 'operations'],
   },
   {
     id: 'ca_4',
@@ -275,7 +275,7 @@ export const initialClientAccounts: ClientAccount[] = [
     login: 'gruz24',
     password: 'Client3!',
     readOnly: false,
-    sections: ['fuelCards', 'discountCards', 'coupons'],
+    sections: ['fuelCards', 'discountCards', 'coupons', 'operations'],
   },
 ];
 

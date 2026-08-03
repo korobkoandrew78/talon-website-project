@@ -39,7 +39,7 @@ def get_session(cur, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     token = get_header(event, 'X-Auth-Token')
     if not token:
         return None
-    cur.execute('SELECT role, user_id, expires_at FROM sessions WHERE token = %s', (token,))
+    cur.execute('SELECT role, user_id, account_id, expires_at FROM sessions WHERE token = %s', (token,))
     session = cur.fetchone()
     if not session or session['expires_at'] < datetime.utcnow():
         return None
@@ -200,6 +200,134 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             items = [card_row_to_json(c) for c in rows]
             pages = max(1, (total + limit - 1) // limit)
             return response(200, {'items': items, 'total': total, 'page': page, 'pages': pages})
+
+        # Клиент: ограниченные действия над своими картами —
+        # блокировка/разблокировка, перемещение топлива между своими картами
+        # одного вида топлива, изменение дневного лимита.
+        if session['role'] == 'client':
+            client_id = session['user_id']
+
+            cur.execute('SELECT read_only FROM client_accounts WHERE id = %s', (session['account_id'],))
+            account = cur.fetchone()
+            if method in ('POST', 'PUT') and (not account or account['read_only']):
+                return response(403, {'error': 'Режим только просмотр'})
+
+            if method == 'POST' and action == 'block':
+                body_data = json.loads(event.get('body') or '{}')
+                cid = body_data.get('id')
+                reason = body_data.get('reason') or ''
+                if not cid:
+                    return response(400, {'error': 'Не указан id'})
+                cur.execute('SELECT client_id FROM fuel_cards WHERE id = %s', (cid,))
+                owner = cur.fetchone()
+                if not owner or str(owner['client_id']) != str(client_id):
+                    return response(403, {'error': 'Доступ запрещён'})
+                cur.execute(
+                    "UPDATE fuel_cards SET status='blocked', block_reason=%s, blocked_at=%s WHERE id=%s "
+                    "RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at",
+                    (reason, date.today(), cid),
+                )
+                c = cur.fetchone()
+                return response(200, card_row_to_json(c))
+
+            if method == 'POST' and action == 'unblock':
+                body_data = json.loads(event.get('body') or '{}')
+                cid = body_data.get('id')
+                if not cid:
+                    return response(400, {'error': 'Не указан id'})
+                cur.execute('SELECT client_id FROM fuel_cards WHERE id = %s', (cid,))
+                owner = cur.fetchone()
+                if not owner or str(owner['client_id']) != str(client_id):
+                    return response(403, {'error': 'Доступ запрещён'})
+                cur.execute(
+                    "UPDATE fuel_cards SET status='active', block_reason='', blocked_at=NULL WHERE id=%s "
+                    "RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at",
+                    (cid,),
+                )
+                c = cur.fetchone()
+                return response(200, card_row_to_json(c))
+
+            if method == 'POST' and action == 'move':
+                body_data = json.loads(event.get('body') or '{}')
+                from_id = body_data.get('from_id')
+                to_id = body_data.get('to_id')
+                amount = body_data.get('amount')
+                if not from_id or not to_id or amount is None:
+                    return response(400, {'error': 'Не указаны карты или количество'})
+                try:
+                    amount = float(amount)
+                except (TypeError, ValueError):
+                    return response(400, {'error': 'Некорректное количество'})
+                if amount <= 0:
+                    return response(400, {'error': 'Количество должно быть положительным'})
+                if str(from_id) == str(to_id):
+                    return response(400, {'error': 'Карты должны различаться'})
+
+                cur.execute('SELECT id, code, idx, client_id, balance, fuel_type_id FROM fuel_cards WHERE id = %s', (from_id,))
+                src = cur.fetchone()
+                if not src or str(src['client_id']) != str(client_id):
+                    return response(403, {'error': 'Доступ запрещён'})
+                if float(src['balance']) < amount:
+                    return response(400, {'error': 'Недостаточно средств на карте'})
+
+                cur.execute('SELECT id, code, idx, client_id, fuel_type_id FROM fuel_cards WHERE id = %s', (to_id,))
+                dst = cur.fetchone()
+                if not dst or str(dst['client_id']) != str(client_id):
+                    return response(403, {'error': 'Доступ запрещён'})
+                if str(src['fuel_type_id']) != str(dst['fuel_type_id']):
+                    return response(400, {'error': 'Перемещение доступно только между картами одного вида топлива'})
+
+                cur.execute('UPDATE fuel_cards SET balance = balance - %s WHERE id = %s', (amount, from_id))
+                cur.execute('UPDATE fuel_cards SET balance = balance + %s WHERE id = %s', (amount, to_id))
+
+                fuel_info = get_fuel_info(cur, src['fuel_type_id'])
+                client_name = get_client_name(cur, client_id)
+                src_number = card_number_str(src['code'], src['idx'])
+                dst_number = card_number_str(dst['code'], dst['idx'])
+                unit = unit_short(fuel_info['unit'])
+                price = float(fuel_info['price'] or 0)
+
+                src_comment = f'Перемещение: списание {amount:.3f} {unit} ({fuel_info["name"]}) -> карта {dst_number} ({client_name})'
+                dst_comment = f'Перемещение: оприходование {amount:.3f} {unit} ({fuel_info["name"]}) с карты {src_number} ({client_name})'
+
+                log_operation(
+                    cur, from_id, src_number, client_id, client_name, src['fuel_type_id'], fuel_info['name'],
+                    None, '', 'move_out', amount, price, round(amount * price, 2), src_comment,
+                )
+                log_operation(
+                    cur, to_id, dst_number, client_id, client_name, src['fuel_type_id'], fuel_info['name'],
+                    None, '', 'move_in', amount, price, round(amount * price, 2), dst_comment,
+                )
+
+                cur.execute(
+                    'SELECT id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at '
+                    'FROM fuel_cards WHERE id IN (%s, %s)',
+                    (from_id, to_id),
+                )
+                rows = cur.fetchall()
+                return response(200, {'items': [card_row_to_json(c) for c in rows]})
+
+            if method == 'PUT':
+                body_data = json.loads(event.get('body') or '{}')
+                cid = body_data.get('id')
+                daily_limit = body_data.get('daily_limit')
+                if not cid or daily_limit is None:
+                    return response(400, {'error': 'Не указан id или лимит'})
+                cur.execute('SELECT client_id FROM fuel_cards WHERE id = %s', (cid,))
+                owner = cur.fetchone()
+                if not owner or str(owner['client_id']) != str(client_id):
+                    return response(403, {'error': 'Доступ запрещён'})
+                cur.execute(
+                    'UPDATE fuel_cards SET daily_limit=%s WHERE id=%s '
+                    'RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at',
+                    (daily_limit, cid),
+                )
+                c = cur.fetchone()
+                if not c:
+                    return response(404, {'error': 'Карта не найдена'})
+                return response(200, card_row_to_json(c))
+
+            return response(403, {'error': 'Доступ запрещён'})
 
         # Остальные операции — только для менеджера
         if session['role'] != 'manager':

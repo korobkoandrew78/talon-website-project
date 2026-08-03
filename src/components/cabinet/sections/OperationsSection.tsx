@@ -39,7 +39,11 @@ const formatDateTime = (iso: string) => {
   });
 };
 
-const OperationsSection = () => {
+interface Props {
+  clientId?: string; // если задан — журнал только этого клиента (кабинет клиента)
+}
+
+const OperationsSection = ({ clientId }: Props) => {
   const { operations, loadingOperations, fetchOperations, clients, fuelTypes, stations } = useStore();
 
   const [dateFrom, setDateFrom] = useState('');
@@ -149,15 +153,17 @@ const OperationsSection = () => {
             <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Номер карты</span>
             <input className={inputCls} placeholder="0001/1" value={fCard} onChange={(e) => setFCard(e.target.value)} />
           </div>
-          <div>
-            <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Клиент</span>
-            <select className={inputCls} value={fClient} onChange={(e) => setFClient(e.target.value)}>
-              <option value="">Все клиенты</option>
-              {clients.map((c) => (
-                <option key={c.id} value={c.id}>{c.name}</option>
-              ))}
-            </select>
-          </div>
+          {!clientId && (
+            <div>
+              <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Клиент</span>
+              <select className={inputCls} value={fClient} onChange={(e) => setFClient(e.target.value)}>
+                <option value="">Все клиенты</option>
+                {clients.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
           <div>
             <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Вид топлива</span>
             <select className={inputCls} value={fFuel} onChange={(e) => setFFuel(e.target.value)}>
@@ -211,7 +217,7 @@ const OperationsSection = () => {
               <colgroup>
                 <col className="w-[112px]" />
                 <col className="w-[68px]" />
-                <col className="w-[140px]" />
+                {!clientId && <col className="w-[140px]" />}
                 <col className="w-[76px]" />
                 <col className="w-[140px]" />
                 <col className="w-[108px]" />
@@ -224,7 +230,7 @@ const OperationsSection = () => {
                 <tr className="border-b border-border text-left">
                   <Th className="px-3 py-2">Дата/время</Th>
                   <Th className="px-3 py-2">№ карты</Th>
-                  <Th className="px-3 py-2">Клиент</Th>
+                  {!clientId && <Th className="px-3 py-2">Клиент</Th>}
                   <Th className="px-3 py-2">Топливо</Th>
                   <Th className="px-3 py-2">АЗС</Th>
                   <Th className="px-3 py-2">Операция</Th>
@@ -241,7 +247,7 @@ const OperationsSection = () => {
                     <tr key={o.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
                       <td className="px-3 py-2 text-xs text-muted-foreground">{formatDateTime(o.createdAt)}</td>
                       <td className="px-3 py-2 font-medium">{o.cardNumber || '—'}</td>
-                      <td className="truncate px-3 py-2 text-muted-foreground" title={o.clientName}>{o.clientName || '—'}</td>
+                      {!clientId && <td className="truncate px-3 py-2 text-muted-foreground" title={o.clientName}>{o.clientName || '—'}</td>}
                       <td className="truncate px-3 py-2 text-muted-foreground">{o.fuelName || '—'}</td>
                       <td className="truncate px-3 py-2 text-muted-foreground" title={o.stationName}>{o.stationName || '—'}</td>
                       <td className="px-3 py-2">
@@ -258,7 +264,7 @@ const OperationsSection = () => {
                 })}
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={10} className="px-4 py-10 text-center text-muted-foreground">
+                    <td colSpan={clientId ? 9 : 10} className="px-4 py-10 text-center text-muted-foreground">
                       {loadingOperations ? 'Загрузка…' : 'Нет операций'}
                     </td>
                   </tr>

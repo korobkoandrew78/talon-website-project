@@ -108,6 +108,7 @@ interface Store {
   topupFuelCard: (id: string, amount: number) => Promise<FuelCard>;
   refuelFuelCard: (id: string, stationId: string, quantity: number, price?: number) => Promise<FuelCard>;
   moveFuelCard: (fromId: string, toId: string, amount: number, toAmount?: number) => Promise<FuelCard[]>;
+  updateFuelCardLimit: (id: string, dailyLimit: number) => Promise<FuelCard>;
 
   createDiscountCard: (data: Omit<DiscountCard, 'id'>) => Promise<DiscountCard>;
   updateDiscountCard: (id: string, data: Omit<DiscountCard, 'id'>) => Promise<DiscountCard>;
@@ -240,6 +241,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
   const fetchOperations = useCallback(async (filter: OperationsFilter) => {
     setLoadingOperations(true);
     try {
+      const role = getRole();
       const res = await api<Paginated<FuelCardOperation>>('fuel-card-operations', {
         query: {
           limit: 1000,
@@ -250,6 +252,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
           station_id: filter.stationId,
           operation: filter.operation,
           card: filter.card,
+          client_self: role === 'client' ? 1 : undefined,
         },
       });
       setOperations(res.items);
@@ -477,6 +480,15 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
     return res.items;
   }, [refreshFuelCards]);
 
+  const updateFuelCardLimit = useCallback(async (id: string, dailyLimit: number) => {
+    const c = await api<FuelCard>('fuel-cards', {
+      method: 'PUT',
+      body: { id, daily_limit: dailyLimit },
+    });
+    await refreshFuelCards();
+    return c;
+  }, [refreshFuelCards]);
+
   // ——— Дисконтные карты ———
 
   const createDiscountCard = useCallback(async (data: Omit<DiscountCard, 'id'>) => {
@@ -567,6 +579,7 @@ export const StoreProvider = ({ children }: { children: ReactNode }) => {
         topupFuelCard,
         refuelFuelCard,
         moveFuelCard,
+        updateFuelCardLimit,
 
         createDiscountCard,
         updateDiscountCard,

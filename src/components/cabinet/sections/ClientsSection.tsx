@@ -22,6 +22,7 @@ const CLIENT_SECTION_OPTIONS = [
   { key: 'fuelCards', label: 'Топливные карты', icon: 'CreditCard' },
   { key: 'discountCards', label: 'Бонусные карты', icon: 'BadgePercent' },
   { key: 'coupons', label: 'Талоны', icon: 'Ticket' },
+  { key: 'operations', label: 'Операции', icon: 'ListOrdered' },
 ];
 
 const empty = (): Client => ({

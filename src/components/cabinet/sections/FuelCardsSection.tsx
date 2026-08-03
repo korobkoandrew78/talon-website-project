@@ -25,7 +25,7 @@ import {
 
 const INDEXES = [1, 2, 3, 4, 5, 6, 7, 8, 9];
 
-type Mode = 'create' | 'edit' | 'topup' | 'move' | 'block' | null;
+type Mode = 'create' | 'edit' | 'topup' | 'move' | 'block' | 'limit' | null;
 
 const emptyCard = (): FuelCard => ({
   id: '',
@@ -48,6 +48,7 @@ interface Props {
 }
 
 const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
+  const isClientMode = !!clientId;
   const {
     fuelCards,
     loadingFuelCards,
@@ -59,6 +60,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     unblockFuelCard,
     topupFuelCard,
     moveFuelCard,
+    updateFuelCardLimit,
   } = useStore();
 
   const [mode, setMode] = useState<Mode>(null);
@@ -128,6 +130,11 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     setDraft({ ...c, blockReason: '' });
     setFormError('');
     setMode('block');
+  };
+  const openLimit = (c: FuelCard) => {
+    setDraft({ ...c });
+    setFormError('');
+    setMode('limit');
   };
 
   const duplicate = (code: string, index: number, ignoreId?: string) =>
@@ -249,8 +256,24 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     }
   };
 
+  const doLimit = async () => {
+    setSaving(true);
+    setFormError('');
+    try {
+      await updateFuelCardLimit(draft.id, draft.dailyLimit);
+      setMode(null);
+    } catch (e) {
+      setFormError(e instanceof ApiError ? e.message : 'Не удалось изменить лимит');
+    } finally {
+      setSaving(false);
+    }
+  };
+
   const moveTargets = scoped.filter(
-    (c) => c.id !== draft.id && c.clientId === draft.clientId,
+    (c) =>
+      c.id !== draft.id &&
+      c.clientId === draft.clientId &&
+      (!isClientMode || c.fuelTypeId === draft.fuelTypeId),
   );
 
   return (
@@ -258,7 +281,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
       <SectionHeader
         subtitle="Раздел"
         title="Топливные карты"
-        action={!readOnly && <AddButton label="Новая карта" onClick={openCreate} />}
+        action={!readOnly && !isClientMode && <AddButton label="Новая карта" onClick={openCreate} />}
       />
 
       <div className="mb-4 grid gap-3 sm:grid-cols-3">
@@ -330,8 +353,14 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                         ) : (
                           <RowAction icon="LockOpen" label="Разблокировать" onClick={() => unblock(c)} />
                         )}
-                        <RowAction icon="Pencil" label="Изменить" onClick={() => openEdit(c)} />
-                        <RowAction icon="Plus" label="Пополнить баланс" onClick={() => openTopup(c)} />
+                        {isClientMode ? (
+                          <RowAction icon="Gauge" label="Изменить дневной лимит" onClick={() => openLimit(c)} />
+                        ) : (
+                          <>
+                            <RowAction icon="Pencil" label="Изменить" onClick={() => openEdit(c)} />
+                            <RowAction icon="Plus" label="Пополнить баланс" onClick={() => openTopup(c)} />
+                          </>
+                        )}
                         <RowAction icon="ArrowLeftRight" label="Переместить топливо" onClick={() => openMove(c)} />
                       </div>
                     </td>
@@ -641,6 +670,40 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
               className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
             >
               {saving ? 'Блокировка…' : 'Заблокировать'}
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Изменение дневного лимита */}
+      <Dialog open={mode === 'limit'} onOpenChange={(o) => !o && setMode(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Дневной лимит · {cardNumber(draft)}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-2">
+            <Field label={`Дневной лимит, ${fuelUnit(draft.fuelTypeId)}`}>
+              <input
+                type="number"
+                className={inputCls}
+                value={draft.dailyLimit}
+                onChange={(e) => setDraft({ ...draft, dailyLimit: Number(e.target.value) })}
+              />
+            </Field>
+            {formError && mode === 'limit' && (
+              <p className="flex items-center gap-2 text-sm text-accent">
+                <Icon name="TriangleAlert" size={15} /> {formError}
+              </p>
+            )}
+          </div>
+          <DialogFooter>
+            <button onClick={() => setMode(null)} className="rounded-full border border-border px-4 py-2 text-sm hover:bg-secondary">Отмена</button>
+            <button
+              onClick={doLimit}
+              disabled={saving}
+              className="rounded-full bg-accent px-5 py-2 text-sm font-semibold text-accent-foreground disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {saving ? 'Сохранение…' : 'Сохранить'}
             </button>
           </DialogFooter>
         </DialogContent>

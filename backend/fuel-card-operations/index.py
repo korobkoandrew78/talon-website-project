@@ -39,7 +39,7 @@ def get_session(cur, event: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     token = get_header(event, 'X-Auth-Token')
     if not token:
         return None
-    cur.execute('SELECT role, user_id, expires_at FROM sessions WHERE token = %s', (token,))
+    cur.execute('SELECT role, user_id, account_id, expires_at FROM sessions WHERE token = %s', (token,))
     session = cur.fetchone()
     if not session or session['expires_at'] < datetime.utcnow():
         return None
@@ -67,7 +67,8 @@ def op_row_to_json(r: Dict[str, Any]) -> Dict[str, Any]:
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    '''Business: журнал операций по топливным картам (только чтение) для менеджера с правом 'operations'.
+    '''Business: журнал операций по топливным картам (только чтение) для менеджера с правом 'operations',
+    и для клиента — только собственные операции (по его client_id).
     Args: event с httpMethod, headers, queryStringParameters; context с request_id.
     Returns: HTTP JSON ответ со списком операций с учётом фильтров.
     '''
@@ -84,21 +85,29 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         session = get_session(cur, event)
         if not session:
             return response(401, {'error': 'Не авторизован'})
-        if session['role'] != 'manager':
+        if session['role'] not in ('manager', 'client'):
             return response(403, {'error': 'Доступ запрещён'})
 
         if method != 'GET':
             return response(405, {'error': 'Метод не поддерживается'})
 
-        cur.execute('SELECT read_only, sections FROM managers WHERE id = %s', (session['user_id'],))
-        manager = cur.fetchone()
-        if not manager or 'operations' not in (manager['sections'] or []):
-            return response(403, {'error': 'Нет доступа к разделу'})
-
         params = event.get('queryStringParameters') or {}
+        client_self = params.get('client_self') == '1'
+        forced_client_id = None
+
+        if session['role'] == 'client':
+            if not client_self:
+                return response(403, {'error': 'Доступ запрещён'})
+            forced_client_id = session['user_id']
+        else:
+            cur.execute('SELECT read_only, sections FROM managers WHERE id = %s', (session['user_id'],))
+            manager = cur.fetchone()
+            if not manager or 'operations' not in (manager['sections'] or []):
+                return response(403, {'error': 'Нет доступа к разделу'})
+
         date_from = params.get('date_from')
         date_to = params.get('date_to')
-        client_id = params.get('client_id')
+        client_id = forced_client_id or params.get('client_id')
         fuel_type_id = params.get('fuel_type_id')
         station_id = params.get('station_id')
         operation = params.get('operation')

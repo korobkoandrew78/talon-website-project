@@ -6,11 +6,13 @@ import { ClientSection } from '@/lib/cabinet';
 import FuelCardsSection from '@/components/cabinet/sections/FuelCardsSection';
 import DiscountCardsSection from '@/components/cabinet/sections/DiscountCardsSection';
 import CouponsSection from '@/components/cabinet/sections/CouponsSection';
+import OperationsSection from '@/components/cabinet/sections/OperationsSection';
 
 const SECTION_META: Record<ClientSection, { label: string; icon: string }> = {
   fuelCards: { label: 'Топливные карты', icon: 'CreditCard' },
   discountCards: { label: 'Бонусные карты', icon: 'BadgePercent' },
   coupons: { label: 'Талоны', icon: 'Ticket' },
+  operations: { label: 'Операции', icon: 'ListOrdered' },
 };
 
 interface ClientUser {
@@ -52,37 +54,29 @@ const Client = () => {
         return <DiscountCardsSection readOnly={readOnly} clientId={client.id} />;
       case 'coupons':
         return <CouponsSection readOnly={readOnly} clientId={client.id} />;
+      case 'operations':
+        return <OperationsSection clientId={client.id} />;
       default:
         return null;
     }
   };
 
   const topbar = (
-    <div className="mb-6 rounded-2xl border border-border bg-card p-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <div className="eyebrow mb-1">Клиент</div>
-          <h1 className="font-head text-2xl font-medium tracking-tight md:text-3xl">{client.name}</h1>
-        </div>
-        {readOnly && (
-          <span className="rounded-full bg-secondary px-3 py-1.5 text-xs text-muted-foreground">
-            Режим «только просмотр»
-          </span>
-        )}
-      </div>
-      <div className="mt-5 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+    <div className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-2xl border border-border bg-card px-6 py-3">
+      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+        <h1 className="font-head text-lg font-medium tracking-tight">{client.name}</h1>
         {info.map((i) => (
-          <div key={i.label} className="flex items-center gap-3">
-            <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-secondary text-primary">
-              <Icon name={i.icon} size={18} />
-            </span>
-            <div className="min-w-0">
-              <div className="text-xs text-muted-foreground">{i.label}</div>
-              <div className="truncate text-sm font-medium">{i.value}</div>
-            </div>
+          <div key={i.label} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+            <Icon name={i.icon} size={14} className="text-primary" />
+            <span>{i.value}</span>
           </div>
         ))}
       </div>
+      {readOnly && (
+        <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+          Режим «только просмотр»
+        </span>
+      )}
     </div>
   );
 
