@@ -8,6 +8,7 @@ import Index from "./pages/Index";
 import Admin from "./pages/Admin";
 import Manager from "./pages/Manager";
 import Client from "./pages/Client";
+import Guide from "./pages/Guide";
 import NotFound from "./pages/NotFound";
 import { StoreProvider } from "@/lib/store";
 
@@ -25,6 +26,7 @@ const App = () => (
             <Route path="/admin" element={<Admin />} />
             <Route path="/manager" element={<Manager />} />
             <Route path="/client" element={<Client />} />
+            <Route path="/guide" element={<Guide />} />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>

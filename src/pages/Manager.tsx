@@ -63,6 +63,7 @@ const Manager = () => {
       nav={available.map((s) => ({ key: s.key, label: s.label, icon: s.icon }))}
       active={currentActive}
       onNavigate={(k) => setActive(k as SectionKey)}
+      showGuide
     >
       {available.length === 0 ? (
         <p className="py-16 text-center text-muted-foreground">Нет доступных разделов</p>

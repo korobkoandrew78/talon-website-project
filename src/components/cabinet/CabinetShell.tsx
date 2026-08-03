@@ -20,9 +20,10 @@ interface Props {
   onNavigate: (key: string) => void;
   children: ReactNode;
   topbar?: ReactNode;
+  showGuide?: boolean;
 }
 
-const CabinetShell = ({ role, nav, active, onNavigate, children, topbar }: Props) => {
+const CabinetShell = ({ role, nav, active, onNavigate, children, topbar, showGuide }: Props) => {
   const navigate = useNavigate();
 
   return (
@@ -34,17 +35,28 @@ const CabinetShell = ({ role, nav, active, onNavigate, children, topbar }: Props
           <img src={LOGO} alt="Талан" className="h-8 rounded-lg bg-white px-2 py-1" />
           <span className="eyebrow hidden sm:block">{role}</span>
         </div>
-        <button
-          onClick={() => {
-            api('auth', { method: 'DELETE' }).catch(() => {});
-            clearAuth();
-            navigate('/');
-          }}
-          className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
-        >
-          <Icon name="LogOut" size={16} />
-          Выйти
-        </button>
+        <div className="flex items-center gap-2">
+          {showGuide && (
+            <button
+              onClick={() => navigate('/guide')}
+              className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+            >
+              <Icon name="BookOpen" size={16} />
+              <span className="hidden sm:inline">Инструкция</span>
+            </button>
+          )}
+          <button
+            onClick={() => {
+              api('auth', { method: 'DELETE' }).catch(() => {});
+              clearAuth();
+              navigate('/');
+            }}
+            className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+          >
+            <Icon name="LogOut" size={16} />
+            Выйти
+          </button>
+        </div>
       </header>
 
       <div className="mx-auto flex max-w-[1400px] gap-6 px-4 py-6 md:px-8">
