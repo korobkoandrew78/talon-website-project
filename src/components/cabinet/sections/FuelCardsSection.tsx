@@ -81,10 +81,13 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const fuelUnit = (id: string) => unitShort(fuelTypes.find((f) => f.id === id)?.unit ?? 'руб');
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '—';
 
-  const scoped = useMemo(
-    () => (clientId ? fuelCards.filter((c) => c.clientId === clientId) : fuelCards),
-    [fuelCards, clientId],
-  );
+  const scoped = useMemo(() => {
+    const list = clientId ? fuelCards.filter((c) => c.clientId === clientId) : fuelCards;
+    // В кабинете клиента балансные карты показываем первыми.
+    return clientId
+      ? [...list].sort((a, b) => Number(isBalanceCard(b)) - Number(isBalanceCard(a)))
+      : list;
+  }, [fuelCards, clientId]);
 
   const filtered = useMemo(
     () =>
@@ -334,7 +337,15 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                           <Icon name="Wallet" size={16} />
                         </span>
                       )}
-                      {cardNumber(c)}
+                      <span
+                        className={
+                          isBalanceCard(c)
+                            ? 'rounded-md bg-foreground px-2 py-0.5 font-mono text-background'
+                            : ''
+                        }
+                      >
+                        {cardNumber(c)}
+                      </span>
                     </span>
                   </td>
                   {!clientId && <td className="px-4 py-3 text-muted-foreground">{clientName(c.clientId)}</td>}
