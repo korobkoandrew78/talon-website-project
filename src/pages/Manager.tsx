@@ -7,6 +7,7 @@ import StationsSection from '@/components/cabinet/sections/StationsSection';
 import ClientsSection from '@/components/cabinet/sections/ClientsSection';
 import FuelCardsSection from '@/components/cabinet/sections/FuelCardsSection';
 import OperationsSection from '@/components/cabinet/sections/OperationsSection';
+import ReportsSection from '@/components/cabinet/sections/ReportsSection';
 import DiscountCardsSection from '@/components/cabinet/sections/DiscountCardsSection';
 import CouponsSection from '@/components/cabinet/sections/CouponsSection';
 
@@ -45,6 +46,8 @@ const Manager = () => {
         return <FuelCardsSection readOnly={readOnly} />;
       case 'operations':
         return <OperationsSection />;
+      case 'reports':
+        return <ReportsSection />;
       case 'discountCards':
         return <DiscountCardsSection readOnly={readOnly} />;
       case 'coupons':

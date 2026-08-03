@@ -102,7 +102,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         else:
             cur.execute('SELECT read_only, sections FROM managers WHERE id = %s', (session['user_id'],))
             manager = cur.fetchone()
-            if not manager or 'operations' not in (manager['sections'] or []):
+            manager_sections = manager['sections'] or [] if manager else []
+            if not manager or ('operations' not in manager_sections and 'reports' not in manager_sections):
                 return response(403, {'error': 'Нет доступа к разделу'})
 
         date_from = params.get('date_from')

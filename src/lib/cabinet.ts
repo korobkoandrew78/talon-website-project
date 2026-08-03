@@ -7,6 +7,7 @@ export type SectionKey =
   | 'clients'
   | 'fuelCards'
   | 'operations'
+  | 'reports'
   | 'discountCards'
   | 'coupons';
 
@@ -22,6 +23,7 @@ export const SECTIONS: SectionMeta[] = [
   { key: 'clients', label: 'Клиенты', icon: 'Users' },
   { key: 'fuelCards', label: 'Топливные карты', icon: 'CreditCard' },
   { key: 'operations', label: 'Операции', icon: 'ListOrdered' },
+  { key: 'reports', label: 'Отчёты', icon: 'FileBarChart2' },
   { key: 'discountCards', label: 'Бонусные карты', icon: 'BadgePercent' },
   { key: 'coupons', label: 'Талоны', icon: 'Ticket' },
 ];
