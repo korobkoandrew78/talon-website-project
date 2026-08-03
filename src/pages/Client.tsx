@@ -62,22 +62,29 @@ const Client = () => {
   };
 
   const topbar = (
-    <div className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-2xl border border-border bg-card px-6 py-3">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
-        <h1 className="font-head text-lg font-medium tracking-tight">{client.name}</h1>
-        {info.map((i) => (
-          <div key={i.label} className="flex items-center gap-1.5 text-sm text-muted-foreground">
-            <Icon name={i.icon} size={14} className="text-primary" />
-            <span>{i.value}</span>
-          </div>
-        ))}
+    <>
+      <div className="mb-3 flex items-center gap-2">
+        <span className="eyebrow">Раздел</span>
+        <span className="text-muted-foreground">/</span>
+        <h1 className="font-head text-xl font-medium tracking-tight">{SECTION_META[currentActive].label}</h1>
       </div>
-      {readOnly && (
-        <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
-          Режим «только просмотр»
-        </span>
-      )}
-    </div>
+      <div className="mb-6 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 rounded-2xl border border-border bg-card px-6 py-3">
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2">
+          <h2 className="font-head text-lg font-medium tracking-tight">{client.name}</h2>
+          {info.map((i) => (
+            <div key={i.label} className="flex items-center gap-1.5 text-sm text-muted-foreground">
+              <Icon name={i.icon} size={14} className="text-primary" />
+              <span>{i.value}</span>
+            </div>
+          ))}
+        </div>
+        {readOnly && (
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+            Режим «только просмотр»
+          </span>
+        )}
+      </div>
+    </>
   );
 
   return (

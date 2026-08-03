@@ -91,6 +91,7 @@ const CouponsSection = ({ readOnly = false, clientId }: Props) => {
       <SectionHeader
         subtitle="Раздел"
         title="Талоны"
+        hideTitle={!!clientId}
         action={!readOnly && <AddButton label="Новый талон" onClick={create} />}
       />
       <TableCard>

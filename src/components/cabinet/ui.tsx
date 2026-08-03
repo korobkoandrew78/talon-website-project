@@ -4,23 +4,32 @@ import { cn } from '@/lib/utils';
 import { SectionKey, SECTIONS, ClientSection, sectionMeta } from '@/lib/cabinet';
 
 // Заголовок раздела с кнопкой создания.
+// hideTitle — скрыть подзаголовок/название (используется, когда заголовок уже
+// показан отдельно снаружи, например в шапке кабинета клиента), сохранив action-кнопки.
 export const SectionHeader = ({
   title,
   subtitle,
   action,
+  hideTitle,
 }: {
   title: string;
   subtitle?: string;
   action?: ReactNode;
-}) => (
-  <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
-    <div>
-      {subtitle && <div className="eyebrow mb-2">{subtitle}</div>}
-      <h1 className="font-head text-2xl font-medium tracking-tight md:text-3xl">{title}</h1>
+  hideTitle?: boolean;
+}) => {
+  if (hideTitle && !action) return null;
+  return (
+    <div className={cn('flex flex-wrap items-end justify-between gap-4', hideTitle ? 'mb-4' : 'mb-6')}>
+      {!hideTitle && (
+        <div>
+          {subtitle && <div className="eyebrow mb-2">{subtitle}</div>}
+          <h1 className="font-head text-2xl font-medium tracking-tight md:text-3xl">{title}</h1>
+        </div>
+      )}
+      {action}
     </div>
-    {action}
-  </div>
-);
+  );
+};
 
 export const AddButton = ({ label, onClick }: { label: string; onClick: () => void }) => (
   <button

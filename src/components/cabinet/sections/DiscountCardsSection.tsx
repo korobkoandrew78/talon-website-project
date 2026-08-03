@@ -76,6 +76,7 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
       <SectionHeader
         subtitle="Раздел"
         title="Бонусные карты"
+        hideTitle={!!clientId}
         action={!readOnly && <AddButton label="Новая карта" onClick={create} />}
       />
       <TableCard>

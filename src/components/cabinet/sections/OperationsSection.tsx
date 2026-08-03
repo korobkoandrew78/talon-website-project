@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
 import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
-import { OPERATION_LABELS, OperationType, unitShort } from '@/lib/cabinet';
+import { OPERATION_LABELS, OperationType, FuelCardOperation, unitShort } from '@/lib/cabinet';
+import { usePagination } from '@/hooks/use-pagination';
+import DataPagination from '@/components/cabinet/DataPagination';
 import { inputCls } from '@/components/cabinet/Field';
 import { SectionHeader, TableCard, Th } from '@/components/cabinet/ui';
 
@@ -85,6 +87,29 @@ const OperationsSection = ({ clientId }: Props) => {
   };
 
   const rows = useMemo(() => operations, [operations]);
+  const { page, setPage, pageCount, pageItems } = usePagination(rows, 15);
+
+  const renderRow = (o: FuelCardOperation) => {
+    const unit = unitShort(fuelTypes.find((f) => f.id === o.fuelTypeId)?.unit ?? 'литр');
+    return (
+      <tr key={o.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
+        <td className="px-3 py-2 text-xs text-muted-foreground">{formatDateTime(o.createdAt)}</td>
+        <td className="px-3 py-2 font-medium">{o.cardNumber || '—'}</td>
+        {!clientId && <td className="truncate px-3 py-2 text-muted-foreground" title={o.clientName}>{o.clientName || '—'}</td>}
+        <td className="truncate px-3 py-2 text-muted-foreground">{o.fuelName || '—'}</td>
+        <td className="truncate px-3 py-2 text-muted-foreground" title={o.stationName}>{o.stationName || '—'}</td>
+        <td className="px-3 py-2">
+          <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${OPERATION_COLORS[o.operation] ?? 'bg-secondary'}`}>
+            {TABLE_OPERATION_LABELS[o.operation] ?? OPERATION_LABELS[o.operation] ?? o.operation}
+          </span>
+        </td>
+        <td className="px-3 py-2">{o.quantity ? `${o.quantity.toLocaleString('ru-RU', { minimumFractionDigits: 3 })} ${unit}` : '—'}</td>
+        <td className="px-3 py-2 text-muted-foreground">{o.price ? o.price.toLocaleString('ru-RU') : '—'}</td>
+        <td className="px-3 py-2">{o.amount ? `${o.amount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽` : '—'}</td>
+        <td className="truncate whitespace-nowrap px-3 py-2 text-muted-foreground" title={o.comment}>{o.comment}</td>
+      </tr>
+    );
+  };
 
   const exportToExcel = () => {
     const data = rows.map((o) => ({
@@ -120,6 +145,7 @@ const OperationsSection = ({ clientId }: Props) => {
         <SectionHeader
           subtitle="Раздел"
           title="Операции"
+          hideTitle={!!clientId}
           action={
             <div className="flex gap-2">
               <button
@@ -211,7 +237,7 @@ const OperationsSection = ({ clientId }: Props) => {
 
       <div id="print-journal">
         <h2 className="mb-4 hidden font-head text-xl font-medium print:block">Журнал операций по топливным картам</h2>
-        <TableCard className="print:border-0 print:rounded-none">
+        <TableCard className="print:hidden">
           <div className="overflow-x-auto">
             <table className="w-full table-fixed whitespace-nowrap text-sm">
               <colgroup>
@@ -241,31 +267,56 @@ const OperationsSection = ({ clientId }: Props) => {
                 </tr>
               </thead>
               <tbody>
-                {rows.map((o) => {
-                  const unit = unitShort(fuelTypes.find((f) => f.id === o.fuelTypeId)?.unit ?? 'литр');
-                  return (
-                    <tr key={o.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
-                      <td className="px-3 py-2 text-xs text-muted-foreground">{formatDateTime(o.createdAt)}</td>
-                      <td className="px-3 py-2 font-medium">{o.cardNumber || '—'}</td>
-                      {!clientId && <td className="truncate px-3 py-2 text-muted-foreground" title={o.clientName}>{o.clientName || '—'}</td>}
-                      <td className="truncate px-3 py-2 text-muted-foreground">{o.fuelName || '—'}</td>
-                      <td className="truncate px-3 py-2 text-muted-foreground" title={o.stationName}>{o.stationName || '—'}</td>
-                      <td className="px-3 py-2">
-                        <span className={`inline-flex items-center whitespace-nowrap rounded-full px-2 py-0.5 text-xs font-medium ${OPERATION_COLORS[o.operation] ?? 'bg-secondary'}`}>
-                          {TABLE_OPERATION_LABELS[o.operation] ?? OPERATION_LABELS[o.operation] ?? o.operation}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2">{o.quantity ? `${o.quantity.toLocaleString('ru-RU', { minimumFractionDigits: 3 })} ${unit}` : '—'}</td>
-                      <td className="px-3 py-2 text-muted-foreground">{o.price ? o.price.toLocaleString('ru-RU') : '—'}</td>
-                      <td className="px-3 py-2">{o.amount ? `${o.amount.toLocaleString('ru-RU', { minimumFractionDigits: 2 })} ₽` : '—'}</td>
-                      <td className="truncate whitespace-nowrap px-3 py-2 text-muted-foreground" title={o.comment}>{o.comment}</td>
-                    </tr>
-                  );
-                })}
-                {rows.length === 0 && (
+                {pageItems.map((o) => renderRow(o))}
+                {pageItems.length === 0 && (
                   <tr>
                     <td colSpan={clientId ? 9 : 10} className="px-4 py-10 text-center text-muted-foreground">
                       {loadingOperations ? 'Загрузка…' : 'Нет операций'}
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+          <DataPagination page={page} pageCount={pageCount} onChange={setPage} />
+        </TableCard>
+
+        {/* Печатная версия — все отфильтрованные строки без пагинации */}
+        <TableCard className="hidden print:block print:border-0 print:rounded-none">
+          <div className="overflow-x-auto">
+            <table className="w-full table-fixed whitespace-nowrap text-sm">
+              <colgroup>
+                <col className="w-[112px]" />
+                <col className="w-[68px]" />
+                {!clientId && <col className="w-[140px]" />}
+                <col className="w-[76px]" />
+                <col className="w-[140px]" />
+                <col className="w-[108px]" />
+                <col className="w-[90px]" />
+                <col className="w-[76px]" />
+                <col className="w-[90px]" />
+                <col />
+              </colgroup>
+              <thead>
+                <tr className="border-b border-border text-left">
+                  <Th className="px-3 py-2">Дата/время</Th>
+                  <Th className="px-3 py-2">№ карты</Th>
+                  {!clientId && <Th className="px-3 py-2">Клиент</Th>}
+                  <Th className="px-3 py-2">Топливо</Th>
+                  <Th className="px-3 py-2">АЗС</Th>
+                  <Th className="px-3 py-2">Операция</Th>
+                  <Th className="px-3 py-2">Кол-во</Th>
+                  <Th className="px-3 py-2">Цена</Th>
+                  <Th className="px-3 py-2">Сумма</Th>
+                  <Th className="px-3 py-2">Комментарий</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((o) => renderRow(o))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td colSpan={clientId ? 9 : 10} className="px-4 py-10 text-center text-muted-foreground">
+                      Нет операций
                     </td>
                   </tr>
                 )}

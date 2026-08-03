@@ -281,6 +281,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
       <SectionHeader
         subtitle="Раздел"
         title="Топливные карты"
+        hideTitle={isClientMode}
         action={!readOnly && !isClientMode && <AddButton label="Новая карта" onClick={openCreate} />}
       />
 
