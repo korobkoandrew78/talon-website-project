@@ -524,20 +524,26 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                 ))}
               </select>
             </Field>
-            <div className="grid grid-cols-2 gap-4">
-              <Field label={`Списать (${fuelName(draft.fuelTypeId)}), ${fuelUnit(draft.fuelTypeId)}`}>
+            {isClientMode ? (
+              <Field label={`Количество (${fuelName(draft.fuelTypeId)}), ${fuelUnit(draft.fuelTypeId)}`}>
                 <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
               </Field>
-              <Field label={`Оприходовать ${targetCard ? `(${fuelName(targetCard.fuelTypeId)})` : ''}, ${targetCard ? fuelUnit(targetCard.fuelTypeId) : ''}`}>
-                <input
-                  type="number"
-                  className={inputCls}
-                  value={isDifferentFuel ? toAmount : amount}
-                  disabled={!isDifferentFuel}
-                  onChange={(e) => setToAmount(Number(e.target.value))}
-                />
-              </Field>
-            </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                <Field label={`Списать (${fuelName(draft.fuelTypeId)}), ${fuelUnit(draft.fuelTypeId)}`}>
+                  <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+                </Field>
+                <Field label={`Оприходовать ${targetCard ? `(${fuelName(targetCard.fuelTypeId)})` : ''}, ${targetCard ? fuelUnit(targetCard.fuelTypeId) : ''}`}>
+                  <input
+                    type="number"
+                    className={inputCls}
+                    value={isDifferentFuel ? toAmount : amount}
+                    disabled={!isDifferentFuel}
+                    onChange={(e) => setToAmount(Number(e.target.value))}
+                  />
+                </Field>
+              </div>
+            )}
             {formError && mode === 'move' && (
               <p className="flex items-center gap-2 text-sm text-accent">
                 <Icon name="TriangleAlert" size={15} /> {formError}
