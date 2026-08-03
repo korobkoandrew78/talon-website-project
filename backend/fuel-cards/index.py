@@ -413,6 +413,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             body_data = json.loads(event.get('body') or '{}')
             cid = body_data.get('id')
             amount = body_data.get('amount')
+            user_comment = (body_data.get('comment') or '').strip()
             if not cid or amount is None:
                 return response(400, {'error': 'Не указан id или сумма'})
             try:
@@ -437,6 +438,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             price = float(fuel_info['price'] or 0)
             amount_sum = round(amount * price, 2)
             comment = f'Пополнение баланса: +{amount:.3f} {unit} ({fuel_info["name"]})'
+            if user_comment:
+                comment = f'{comment}. {user_comment}'
             log_operation(
                 cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
                 None, '', 'topup', amount, price, amount_sum, comment,

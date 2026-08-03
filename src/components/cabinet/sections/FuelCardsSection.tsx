@@ -66,6 +66,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const [mode, setMode] = useState<Mode>(null);
   const [draft, setDraft] = useState<FuelCard>(emptyCard());
   const [amount, setAmount] = useState(0);
+  const [topupComment, setTopupComment] = useState('');
   const [toAmount, setToAmount] = useState(0);
   const [targetId, setTargetId] = useState('');
   const [formError, setFormError] = useState('');
@@ -114,6 +115,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
   const openTopup = (c: FuelCard) => {
     setDraft({ ...c });
     setAmount(0);
+    setTopupComment('');
     setFormError('');
     setMode('topup');
   };
@@ -187,7 +189,7 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     setSaving(true);
     setFormError('');
     try {
-      await topupFuelCard(draft.id, amount);
+      await topupFuelCard(draft.id, amount, topupComment.trim());
       setMode(null);
     } catch (e) {
       setFormError(e instanceof ApiError ? e.message : 'Не удалось пополнить баланс');
@@ -469,6 +471,14 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
           <div className="space-y-4 py-2">
             <Field label={`Сумма пополнения, ${fuelUnit(draft.fuelTypeId)}`}>
               <input type="number" className={inputCls} value={amount} onChange={(e) => setAmount(Number(e.target.value))} />
+            </Field>
+            <Field label="Комментарий">
+              <input
+                className={inputCls}
+                value={topupComment}
+                onChange={(e) => setTopupComment(e.target.value)}
+                placeholder="Например: накладная № 123 от 05.08.2026"
+              />
             </Field>
             {formError && mode === 'topup' && (
               <p className="flex items-center gap-2 text-sm text-accent">
