@@ -1,10 +1,11 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState, Ref, RefObject } from 'react';
 import * as XLSX from 'xlsx';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
 import { OPERATION_LABELS, OperationType, FuelCardOperation, unitShort } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
+import { useFitRowCount } from '@/hooks/use-fit-row-count';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { inputCls } from '@/components/cabinet/Field';
 import { SectionHeader, TableCard, Th } from '@/components/cabinet/ui';
@@ -96,12 +97,18 @@ const OperationsSection = ({ clientId }: Props) => {
   };
 
   const rows = useMemo(() => operations, [operations]);
-  const { page, setPage, pageCount, pageItems } = usePagination(rows, 15);
+  const { containerRef, rowRef, footRef, rowCount } = useFitRowCount({
+    minRows: 3,
+    fallbackRows: 15,
+    extraBottomSpace: 24,
+    deps: [loadingOperations, rows.length],
+  });
+  const { page, setPage, pageCount, pageItems } = usePagination(rows, rowCount);
 
-  const renderRow = (o: FuelCardOperation) => {
+  const renderRow = (o: FuelCardOperation, ref?: Ref<HTMLTableRowElement>) => {
     const unit = unitShort(fuelTypes.find((f) => f.id === o.fuelTypeId)?.unit ?? 'литр');
     return (
-      <tr key={o.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
+      <tr key={o.id} ref={ref} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
         <td className="px-3 py-2 text-xs text-muted-foreground">{formatDateTime(o.createdAt)}</td>
         <td className="px-3 py-2 font-medium">{o.cardNumber || '—'}</td>
         {!clientId && <td className="truncate px-3 py-2 text-muted-foreground" title={o.clientName}>{o.clientName || '—'}</td>}
@@ -295,8 +302,8 @@ const OperationsSection = ({ clientId }: Props) => {
                   <Th className="px-3 py-2">Комментарий</Th>
                 </tr>
               </thead>
-              <tbody>
-                {pageItems.map((o) => renderRow(o))}
+              <tbody ref={containerRef as RefObject<HTMLTableSectionElement>}>
+                {pageItems.map((o, i) => renderRow(o, i === 0 ? rowRef : undefined))}
                 {pageItems.length === 0 && (
                   <tr>
                     <td colSpan={clientId ? 9 : 10} className="px-4 py-10 text-center text-muted-foreground">
@@ -307,7 +314,9 @@ const OperationsSection = ({ clientId }: Props) => {
               </tbody>
             </table>
           </div>
-          <DataPagination page={page} pageCount={pageCount} onChange={setPage} />
+          <div ref={footRef}>
+            <DataPagination page={page} pageCount={pageCount} onChange={setPage} />
+          </div>
         </TableCard>
 
         {/* Печатная версия — все отфильтрованные строки без пагинации */}
