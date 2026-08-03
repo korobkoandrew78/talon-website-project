@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import * as XLSX from 'xlsx';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
 import { OPERATION_LABELS, OperationType, FuelCardOperation, unitShort } from '@/lib/cabinet';
@@ -48,6 +49,8 @@ interface Props {
 const OperationsSection = ({ clientId }: Props) => {
   const { operations, loadingOperations, fetchOperations, clients, fuelTypes, stations } = useStore();
 
+  const [filterOpen, setFilterOpen] = useState(false);
+
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [fClient, setFClient] = useState('');
@@ -55,6 +58,8 @@ const OperationsSection = ({ clientId }: Props) => {
   const [fStation, setFStation] = useState('');
   const [fOperation, setFOperation] = useState('');
   const [fCard, setFCard] = useState('');
+
+  const activeFilterCount = [dateFrom, dateTo, fClient, fFuel, fStation, fOperation, fCard.trim()].filter(Boolean).length;
 
   const load = () => {
     fetchOperations({
@@ -73,7 +78,10 @@ const OperationsSection = ({ clientId }: Props) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const applyFilters = () => load();
+  const applyFilters = () => {
+    load();
+    setFilterOpen(false);
+  };
 
   const resetFilters = () => {
     setDateFrom('');
@@ -84,6 +92,7 @@ const OperationsSection = ({ clientId }: Props) => {
     setFOperation('');
     setFCard('');
     fetchOperations({}).catch(() => {});
+    setFilterOpen(false);
   };
 
   const rows = useMemo(() => operations, [operations]);
@@ -149,6 +158,18 @@ const OperationsSection = ({ clientId }: Props) => {
           action={
             <div className="flex gap-2">
               <button
+                onClick={() => setFilterOpen(true)}
+                className="relative flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+              >
+                <Icon name="Filter" size={16} />
+                Фильтр
+                {activeFilterCount > 0 && (
+                  <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-accent px-1 text-[0.65rem] font-semibold text-accent-foreground">
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+              <button
                 onClick={printJournal}
                 className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
               >
@@ -165,75 +186,83 @@ const OperationsSection = ({ clientId }: Props) => {
             </div>
           }
         />
+      </div>
 
-        <div className="mb-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <div>
-            <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Дата с</span>
-            <input type="date" className={inputCls} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
-          </div>
-          <div>
-            <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Дата по</span>
-            <input type="date" className={inputCls} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
-          </div>
-          <div className="relative">
-            <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Номер карты</span>
-            <input className={inputCls} placeholder="0001/1" value={fCard} onChange={(e) => setFCard(e.target.value)} />
-          </div>
-          {!clientId && (
+      <Dialog open={filterOpen} onOpenChange={setFilterOpen}>
+        <DialogContent className="max-h-[85vh] max-w-lg overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle>Фильтр операций</DialogTitle>
+          </DialogHeader>
+          <div className="grid gap-3 py-2 sm:grid-cols-2">
             <div>
-              <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Клиент</span>
-              <select className={inputCls} value={fClient} onChange={(e) => setFClient(e.target.value)}>
-                <option value="">Все клиенты</option>
-                {clients.map((c) => (
-                  <option key={c.id} value={c.id}>{c.name}</option>
+              <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Дата с</span>
+              <input type="date" className={inputCls} value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+            </div>
+            <div>
+              <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Дата по</span>
+              <input type="date" className={inputCls} value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+            </div>
+            <div className="relative">
+              <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Номер карты</span>
+              <input className={inputCls} placeholder="0001/1" value={fCard} onChange={(e) => setFCard(e.target.value)} />
+            </div>
+            {!clientId && (
+              <div>
+                <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Клиент</span>
+                <select className={inputCls} value={fClient} onChange={(e) => setFClient(e.target.value)}>
+                  <option value="">Все клиенты</option>
+                  {clients.map((c) => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+            )}
+            <div>
+              <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Вид топлива</span>
+              <select className={inputCls} value={fFuel} onChange={(e) => setFFuel(e.target.value)}>
+                <option value="">Все виды топлива</option>
+                {fuelTypes.map((f) => (
+                  <option key={f.id} value={f.id}>{f.name}</option>
                 ))}
               </select>
             </div>
-          )}
-          <div>
-            <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Вид топлива</span>
-            <select className={inputCls} value={fFuel} onChange={(e) => setFFuel(e.target.value)}>
-              <option value="">Все виды топлива</option>
-              {fuelTypes.map((f) => (
-                <option key={f.id} value={f.id}>{f.name}</option>
-              ))}
-            </select>
+            <div>
+              <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">АЗС</span>
+              <select className={inputCls} value={fStation} onChange={(e) => setFStation(e.target.value)}>
+                <option value="">Все АЗС</option>
+                {stations.map((s) => (
+                  <option key={s.id} value={s.id}>{s.name}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Тип операции</span>
+              <select className={inputCls} value={fOperation} onChange={(e) => setFOperation(e.target.value)}>
+                <option value="">Все операции</option>
+                {OPERATIONS.map((o) => (
+                  <option key={o} value={o}>{OPERATION_LABELS[o]}</option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div>
-            <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">АЗС</span>
-            <select className={inputCls} value={fStation} onChange={(e) => setFStation(e.target.value)}>
-              <option value="">Все АЗС</option>
-              {stations.map((s) => (
-                <option key={s.id} value={s.id}>{s.name}</option>
-              ))}
-            </select>
-          </div>
-          <div>
-            <span className="mb-1.5 block text-[0.72rem] uppercase tracking-[0.12em] text-muted-foreground">Тип операции</span>
-            <select className={inputCls} value={fOperation} onChange={(e) => setFOperation(e.target.value)}>
-              <option value="">Все операции</option>
-              {OPERATIONS.map((o) => (
-                <option key={o} value={o}>{OPERATION_LABELS[o]}</option>
-              ))}
-            </select>
-          </div>
-          <div className="flex items-end gap-2">
-            <button
-              onClick={applyFilters}
-              className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
-            >
-              <Icon name="Filter" size={15} />
-              Применить
-            </button>
+          <DialogFooter>
             <button
               onClick={resetFilters}
               className="flex items-center justify-center gap-2 rounded-xl border border-border px-4 py-2.5 text-sm hover:bg-secondary"
             >
               <Icon name="X" size={15} />
+              Сбросить
             </button>
-          </div>
-        </div>
-      </div>
+            <button
+              onClick={applyFilters}
+              className="flex items-center justify-center gap-2 rounded-xl bg-primary px-4 py-2.5 text-sm font-semibold text-primary-foreground"
+            >
+              <Icon name="Filter" size={15} />
+              Применить
+            </button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       <div id="print-journal">
         <h2 className="mb-4 hidden font-head text-xl font-medium print:block">Журнал операций по топливным картам</h2>
