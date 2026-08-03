@@ -332,10 +332,16 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                 <tr key={c.id} className="border-b border-border/60 last:border-0 hover:bg-secondary/40">
                   <td className="px-4 py-3 font-medium">
                     <span className="flex items-center gap-2">
-                      {isBalanceCard(c) && (
+                      {isBalanceCard(c) ? (
                         <span title="Балансная карта" className="text-primary">
                           <Icon name="Wallet" size={16} />
                         </span>
+                      ) : (
+                        isClientMode && (
+                          <span title="Топливная карта" className="text-white">
+                            <Icon name="CreditCard" size={16} />
+                          </span>
+                        )
                       )}
                       <span
                         className={
