@@ -8,6 +8,7 @@ import { Coupon, today } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls } from '@/components/cabinet/Field';
+import { useConfirm } from '@/components/cabinet/ConfirmDialog';
 import { SectionHeader, AddButton, RowAction, TableCard, Th } from '@/components/cabinet/ui';
 import { cn } from '@/lib/utils';
 
@@ -39,6 +40,7 @@ const CouponsSection = ({ readOnly = false, clientId }: Props) => {
   const [draft, setDraft] = useState<Coupon>(empty());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '—';
   const fuelName = (id: string) => fuelTypes.find((f) => f.id === id)?.name ?? '—';
@@ -78,9 +80,10 @@ const CouponsSection = ({ readOnly = false, clientId }: Props) => {
       setSaving(false);
     }
   };
-  const remove = async (id: string) => {
+  const remove = async (t: Coupon) => {
+    if (!(await confirm({ description: `Удалить талон «${t.number}»?` }))) return;
     try {
-      await deleteCoupon(id);
+      await deleteCoupon(t.id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить талон');
     }
@@ -125,7 +128,7 @@ const CouponsSection = ({ readOnly = false, clientId }: Props) => {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
                         <RowAction icon="Pencil" label="Изменить" onClick={() => edit(t)} />
-                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(t.id)} />
+                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(t)} />
                       </div>
                     </td>
                   )}
@@ -209,6 +212,7 @@ const CouponsSection = ({ readOnly = false, clientId }: Props) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {ConfirmDialog}
     </>
   );
 };

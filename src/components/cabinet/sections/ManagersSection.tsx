@@ -8,6 +8,7 @@ import { Manager, SectionKey } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls, SwitchRow } from '@/components/cabinet/Field';
+import { useConfirm } from '@/components/cabinet/ConfirmDialog';
 import {
   SectionHeader,
   AddButton,
@@ -37,6 +38,7 @@ const ManagersSection = () => {
   const [draft, setDraft] = useState<Manager>(empty());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const { confirm, ConfirmDialog } = useConfirm();
   const { page, setPage, pageCount, pageItems } = usePagination(managers);
 
   const create = () => {
@@ -64,9 +66,10 @@ const ManagersSection = () => {
       setSaving(false);
     }
   };
-  const remove = async (id: string) => {
+  const remove = async (m: Manager) => {
+    if (!(await confirm({ description: `Удалить менеджера «${m.fullName}»?` }))) return;
     try {
-      await deleteManager(id);
+      await deleteManager(m.id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить менеджера');
     }
@@ -107,7 +110,7 @@ const ManagersSection = () => {
                   <td className="px-3 py-3">
                     <div className="flex justify-end gap-1.5">
                       <RowAction icon="Pencil" label="Изменить" onClick={() => edit(m)} />
-                      <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(m.id)} />
+                      <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(m)} />
                     </div>
                   </td>
                 </tr>
@@ -185,6 +188,7 @@ const ManagersSection = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {ConfirmDialog}
     </>
   );
 };

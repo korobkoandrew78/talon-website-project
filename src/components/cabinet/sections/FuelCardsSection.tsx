@@ -83,10 +83,14 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
 
   const scoped = useMemo(() => {
     const list = clientId ? fuelCards.filter((c) => c.clientId === clientId) : fuelCards;
+    const sorted = [...list].sort((a, b) => {
+      const byCode = a.code.localeCompare(b.code);
+      return byCode !== 0 ? byCode : a.index - b.index;
+    });
     // В кабинете клиента балансные карты показываем первыми.
     return clientId
-      ? [...list].sort((a, b) => Number(isBalanceCard(b)) - Number(isBalanceCard(a)))
-      : list;
+      ? sorted.sort((a, b) => Number(isBalanceCard(b)) - Number(isBalanceCard(a)))
+      : sorted;
   }, [fuelCards, clientId]);
 
   const filtered = useMemo(
@@ -147,6 +151,13 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
       (c) => c.code === code && c.index === index && c.id !== ignoreId,
     );
 
+  // Карты с одинаковым номером (без учёта индекса) у одного клиента не должны
+  // иметь одинаковый вид топлива.
+  const sameCodeSameFuel = (code: string, fuelTypeId: string, clientId: string, ignoreId?: string) =>
+    fuelCards.some(
+      (c) => c.code === code && c.clientId === clientId && c.fuelTypeId === fuelTypeId && c.id !== ignoreId,
+    );
+
   const saveCard = async () => {
     const code = draft.code.padStart(4, '0');
     if (!/^\d{4}$/.test(code)) {
@@ -155,6 +166,10 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
     }
     if (duplicate(code, draft.index, draft.id || undefined)) {
       setFormError(`Карта ${code}/${draft.index} уже существует`);
+      return;
+    }
+    if (sameCodeSameFuel(code, draft.fuelTypeId, draft.clientId, draft.id || undefined)) {
+      setFormError(`У карты с номером ${code} уже есть карта с таким же видом топлива (${fuelName(draft.fuelTypeId)})`);
       return;
     }
     setSaving(true);
@@ -337,11 +352,9 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                           <Icon name="Wallet" size={16} />
                         </span>
                       ) : (
-                        isClientMode && (
-                          <span title="Топливная карта" className="text-white">
-                            <Icon name="CreditCard" size={16} />
-                          </span>
-                        )
+                        <span title="Топливная карта" className="text-muted-foreground">
+                          <Icon name="CreditCard" size={16} />
+                        </span>
                       )}
                       <span
                         className={

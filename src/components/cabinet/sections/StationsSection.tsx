@@ -8,6 +8,7 @@ import { Station } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls } from '@/components/cabinet/Field';
+import { useConfirm } from '@/components/cabinet/ConfirmDialog';
 import {
   SectionHeader,
   AddButton,
@@ -24,6 +25,7 @@ const StationsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [draft, setDraft] = useState<Station>(empty());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const { confirm, ConfirmDialog } = useConfirm();
   const { page, setPage, pageCount, pageItems } = usePagination(stations);
 
   const edit = (s: Station) => {
@@ -51,9 +53,10 @@ const StationsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       setSaving(false);
     }
   };
-  const remove = async (id: string) => {
+  const remove = async (s: Station) => {
+    if (!(await confirm({ description: `Удалить АЗС «${s.name}»?` }))) return;
     try {
-      await deleteStation(id);
+      await deleteStation(s.id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить АЗС');
     }
@@ -87,7 +90,7 @@ const StationsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
                         <RowAction icon="Pencil" label="Изменить" onClick={() => edit(s)} />
-                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(s.id)} />
+                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(s)} />
                       </div>
                     </td>
                   )}
@@ -159,6 +162,7 @@ const StationsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {ConfirmDialog}
     </>
   );
 };

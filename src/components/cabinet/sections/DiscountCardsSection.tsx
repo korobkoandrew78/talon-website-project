@@ -8,6 +8,7 @@ import { DiscountCard } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls } from '@/components/cabinet/Field';
+import { useConfirm } from '@/components/cabinet/ConfirmDialog';
 import { SectionHeader, AddButton, RowAction, TableCard, Th, StatusPill } from '@/components/cabinet/ui';
 
 const empty = (): DiscountCard => ({
@@ -30,6 +31,7 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
   const [draft, setDraft] = useState<DiscountCard>(empty());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const clientName = (id: string) => clients.find((c) => c.id === id)?.name ?? '—';
   const scoped = useMemo(
@@ -63,9 +65,10 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
       setSaving(false);
     }
   };
-  const remove = async (id: string) => {
+  const remove = async (d: DiscountCard) => {
+    if (!(await confirm({ description: `Удалить бонусную карту «${d.number}»?` }))) return;
     try {
-      await deleteDiscountCard(id);
+      await deleteDiscountCard(d.id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить карту');
     }
@@ -104,7 +107,7 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
                         <RowAction icon="Pencil" label="Изменить" onClick={() => edit(d)} />
-                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(d.id)} />
+                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(d)} />
                       </div>
                     </td>
                   )}
@@ -183,6 +186,7 @@ const DiscountCardsSection = ({ readOnly = false, clientId }: Props) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {ConfirmDialog}
     </>
   );
 };

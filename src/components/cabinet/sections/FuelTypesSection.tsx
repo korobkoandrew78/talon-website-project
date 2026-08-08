@@ -8,6 +8,7 @@ import { FuelType, Unit, unitShort } from '@/lib/cabinet';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls } from '@/components/cabinet/Field';
+import { useConfirm } from '@/components/cabinet/ConfirmDialog';
 import {
   SectionHeader,
   AddButton,
@@ -25,6 +26,7 @@ const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [draft, setDraft] = useState<FuelType>(empty());
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState('');
+  const { confirm, ConfirmDialog } = useConfirm();
   const { page, setPage, pageCount, pageItems } = usePagination(fuelTypes);
 
   const edit = (f: FuelType) => {
@@ -52,9 +54,10 @@ const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       setSaving(false);
     }
   };
-  const remove = async (id: string) => {
+  const remove = async (f: FuelType) => {
+    if (!(await confirm({ description: `Удалить вид топлива «${f.name}»?` }))) return;
     try {
-      await deleteFuelType(id);
+      await deleteFuelType(f.id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить вид топлива');
     }
@@ -90,7 +93,7 @@ const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
                         <RowAction icon="Pencil" label="Изменить" onClick={() => edit(f)} />
-                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(f.id)} />
+                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(f)} />
                       </div>
                     </td>
                   )}
@@ -182,6 +185,7 @@ const FuelTypesSection = ({ readOnly = false }: { readOnly?: boolean }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {ConfirmDialog}
     </>
   );
 };

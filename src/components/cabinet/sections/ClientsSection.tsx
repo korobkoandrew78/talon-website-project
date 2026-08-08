@@ -9,6 +9,7 @@ import { printClientInstruction } from '@/components/cabinet/printClientInstruct
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls, SwitchRow } from '@/components/cabinet/Field';
+import { useConfirm } from '@/components/cabinet/ConfirmDialog';
 import {
   SectionHeader,
   AddButton,
@@ -72,6 +73,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [accountDraft, setAccountDraft] = useState<ClientAccount>(emptyAccount(''));
   const [accountSaving, setAccountSaving] = useState(false);
   const [accountError, setAccountError] = useState('');
+  const { confirm, ConfirmDialog } = useConfirm();
 
   const filtered = useMemo(
     () =>
@@ -128,9 +130,10 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       setSaving(false);
     }
   };
-  const remove = async (id: string) => {
+  const remove = async (c: Client) => {
+    if (!(await confirm({ description: `Удалить клиента «${c.name}»?` }))) return;
     try {
-      await deleteClient(id);
+      await deleteClient(c.id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить клиента');
     }
@@ -178,9 +181,10 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       setAccountSaving(false);
     }
   };
-  const removeAccount = async (id: string) => {
+  const removeAccount = async (a: ClientAccount) => {
+    if (!(await confirm({ description: `Удалить учётную запись «${a.login}»?` }))) return;
     try {
-      await deleteClientAccount(id);
+      await deleteClientAccount(a.id);
       await loadAccounts(draft.id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить учётную запись');
@@ -244,7 +248,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                           onClick={() => printInstruction(c)}
                         />
                         <RowAction icon="Pencil" label="Изменить" onClick={() => edit(c)} />
-                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(c.id)} />
+                        <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(c)} />
                       </div>
                     </td>
                   )}
@@ -333,7 +337,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                       {!readOnly && (
                         <div className="flex gap-1.5">
                           <RowAction icon="Pencil" label="Изменить" onClick={() => openAccountEdit(a)} />
-                          <RowAction icon="Trash2" label="Удалить" danger onClick={() => removeAccount(a.id)} />
+                          <RowAction icon="Trash2" label="Удалить" danger onClick={() => removeAccount(a)} />
                         </div>
                       )}
                     </div>
@@ -413,6 +417,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {ConfirmDialog}
     </>
   );
 };
