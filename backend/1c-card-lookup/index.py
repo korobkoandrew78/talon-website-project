@@ -37,9 +37,10 @@ def response(status: int, body: Dict[str, Any]):
 
 
 def extract_card_code(raw: str) -> str:
-    '''Извлекает 4-значный код карты из штрихкода EAN13 (префикс 20) или принимает код напрямую.'''
+    '''Извлекает 4-значный код карты из штрихкода EAN13 (префикс 22, последняя цифра — контрольная,
+    отбрасывается) или принимает код напрямую.'''
     value = raw.strip()
-    if re.fullmatch(r'\d{13}', value) and value.startswith('20'):
+    if re.fullmatch(r'\d{13}', value) and value.startswith('22'):
         return value[8:12]
     if re.fullmatch(r'\d{1,4}', value):
         return value.zfill(4)
@@ -47,8 +48,9 @@ def extract_card_code(raw: str) -> str:
 
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
-    '''Business: поиск топливных карт по штрихкоду EAN13 (префикс 20, код карты — цифры 9-12)
-    или по коду карты напрямую (например 0003) для интеграции с 1С:Бухгалтерия. Возвращает
+    '''Business: поиск топливных карт по штрихкоду EAN13 (префикс 22, код карты — цифры 9-12,
+    последняя 13-я цифра контрольная и не учитывается) или по коду карты напрямую (например 0003)
+    для интеграции с 1С:Бухгалтерия. Возвращает
     таблицу всех карт с таким кодом: номер, индекс, код 1С топлива, цена, баланс, дневной лимит,
     остаток дневного лимита (лимит минус сегодняшние заправки, не считается при нулевом лимите), статус.
     Args: event с httpMethod, headers (X-Api-Key), queryStringParameters (barcode или code); context с request_id.

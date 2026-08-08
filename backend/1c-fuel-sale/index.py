@@ -37,9 +37,10 @@ def response(status: int, body: Dict[str, Any]):
 
 
 def extract_card_code(raw: str) -> str:
-    '''Извлекает 4-значный код карты из штрихкода EAN13 (префикс 20) или принимает код напрямую.'''
+    '''Извлекает 4-значный код карты из штрихкода EAN13 (префикс 22, последняя цифра — контрольная,
+    отбрасывается) или принимает код напрямую.'''
     value = (raw or '').strip()
-    if re.fullmatch(r'\d{13}', value) and value.startswith('20'):
+    if re.fullmatch(r'\d{13}', value) and value.startswith('22'):
         return value[8:12]
     if re.fullmatch(r'\d{1,4}', value):
         return value.zfill(4)
@@ -94,12 +95,12 @@ def parse_number(value) -> Optional[float]:
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     '''Business: регистрация заправки (списания топлива) по топливной карте для интеграции с 1С:Бухгалтерия.
-    Принимает штрихкод EAN13 или код карты (плюс idx при неоднозначности), количество, цену, сумму
-    и код 1С АЗС. Проверяет статус карты, баланс и дневной лимит, списывает топливо и создаёт запись
-    в журнале операций с автогенерируемым комментарием. Возвращает результат: успех либо причину отказа
-    с разными HTTP-кодами: 404 карта/АЗС не найдена, 409 неоднозначный код карты, 423 карта заблокирована,
-    402 недостаточно топлива, 429 превышен дневной лимит.
-    Args: event с httpMethod, headers (X-Api-Key), body (JSON: barcode/code, idx, quantity, price, amount, station_code1c);
+    Принимает штрихкод EAN13 или код карты + ОБЯЗАТЕЛЬНЫЙ idx (индекс карты) для точной идентификации,
+    количество, цену, сумму и код 1С АЗС. Проверяет статус карты, баланс и дневной лимит, списывает
+    топливо и создаёт запись в журнале операций с автогенерируемым комментарием. Возвращает результат:
+    успех либо причину отказа с разными HTTP-кодами: 400 не указан idx, 404 карта/АЗС не найдена,
+    423 карта заблокирована, 402 недостаточно топлива, 429 превышен дневной лимит.
+    Args: event с httpMethod, headers (X-Api-Key), body (JSON: barcode/code, idx (обязателен), quantity, price, amount, station_code1c);
           context с request_id.
     Returns: HTTP JSON ответ с результатом операции.
     '''
@@ -130,6 +131,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
     if not raw_card:
         return response(400, {'error': 'Укажите barcode (EAN13) или code карты'})
+    if idx is None or not str(idx).strip():
+        return response(400, {'error': 'Укажите idx (индекс карты) для точной идентификации'})
+    try:
+        idx = int(idx)
+    except (TypeError, ValueError):
+        return response(400, {'error': 'Некорректный idx (индекс карты)'})
     if not station_code1c:
         return response(400, {'error': 'Укажите station_code1c (код 1С АЗС)'})
     if quantity is None or quantity <= 0:
@@ -154,18 +161,11 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         if not station:
             return response(404, {'error': 'АЗС не найдена', 'result': 'station_not_found'})
 
-        if idx is not None:
-            cur.execute(
-                'SELECT id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit '
-                'FROM fuel_cards WHERE code = %s AND idx = %s',
-                (card_code, idx),
-            )
-        else:
-            cur.execute(
-                'SELECT id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit '
-                'FROM fuel_cards WHERE code = %s',
-                (card_code,),
-            )
+        cur.execute(
+            'SELECT id, code, idx, fuel_type_id, client_id, balance, status, block_reason, daily_limit '
+            'FROM fuel_cards WHERE code = %s AND idx = %s',
+            (card_code, idx),
+        )
         candidates = cur.fetchall()
 
         if not candidates:
@@ -173,11 +173,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
 
         if len(candidates) > 1:
             return response(409, {
-                'error': 'Найдено несколько карт с таким кодом, уточните idx',
+                'error': 'Найдено несколько карт с таким кодом и индексом у разных клиентов, обратитесь к менеджеру',
                 'result': 'ambiguous_card',
-                'candidates': [
-                    {'cardNumber': card_number_str(c['code'], c['idx']), 'idx': c['idx']} for c in candidates
-                ],
             })
 
         card = candidates[0]
