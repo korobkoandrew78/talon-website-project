@@ -368,13 +368,17 @@ const FuelCardsSection = ({ readOnly = false, clientId }: Props) => {
                   {!readOnly && (
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
-                        {c.status === 'active' ? (
-                          <RowAction icon="Lock" label="Заблокировать" onClick={() => openBlock(c)} />
-                        ) : (
-                          <RowAction icon="LockOpen" label="Разблокировать" onClick={() => unblock(c)} />
+                        {!(isClientMode && isBalanceCard(c)) && (
+                          c.status === 'active' ? (
+                            <RowAction icon="Lock" label="Заблокировать" onClick={() => openBlock(c)} />
+                          ) : (
+                            <RowAction icon="LockOpen" label="Разблокировать" onClick={() => unblock(c)} />
+                          )
                         )}
                         {isClientMode ? (
-                          <RowAction icon="Gauge" label="Изменить дневной лимит" onClick={() => openLimit(c)} />
+                          !isBalanceCard(c) && (
+                            <RowAction icon="Gauge" label="Изменить дневной лимит" onClick={() => openLimit(c)} />
+                          )
                         ) : (
                           <>
                             <RowAction icon="Pencil" label="Изменить" onClick={() => openEdit(c)} />

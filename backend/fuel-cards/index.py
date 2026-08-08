@@ -218,10 +218,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 reason = body_data.get('reason') or ''
                 if not cid:
                     return response(400, {'error': 'Не указан id'})
-                cur.execute('SELECT client_id FROM fuel_cards WHERE id = %s', (cid,))
+                cur.execute('SELECT client_id, code FROM fuel_cards WHERE id = %s', (cid,))
                 owner = cur.fetchone()
                 if not owner or str(owner['client_id']) != str(client_id):
                     return response(403, {'error': 'Доступ запрещён'})
+                if owner['code'] == '0000':
+                    return response(400, {'error': 'Балансную карту нельзя заблокировать'})
                 cur.execute(
                     "UPDATE fuel_cards SET status='blocked', block_reason=%s, blocked_at=%s WHERE id=%s "
                     "RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at",
@@ -313,10 +315,12 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
                 daily_limit = body_data.get('daily_limit')
                 if not cid or daily_limit is None:
                     return response(400, {'error': 'Не указан id или лимит'})
-                cur.execute('SELECT client_id FROM fuel_cards WHERE id = %s', (cid,))
+                cur.execute('SELECT client_id, code FROM fuel_cards WHERE id = %s', (cid,))
                 owner = cur.fetchone()
                 if not owner or str(owner['client_id']) != str(client_id):
                     return response(403, {'error': 'Доступ запрещён'})
+                if owner['code'] == '0000':
+                    return response(400, {'error': 'Дневной лимит балансной карты нельзя изменить'})
                 cur.execute(
                     'UPDATE fuel_cards SET daily_limit=%s WHERE id=%s '
                     'RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at',
