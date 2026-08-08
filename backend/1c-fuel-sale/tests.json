@@ -1,0 +1,28 @@
+{
+  "testCases": [
+    {
+      "name": "CORS preflight",
+      "method": "OPTIONS",
+      "headers": {},
+      "queryStringParameters": {},
+      "body": null,
+      "expectedStatus": 200
+    },
+    {
+      "name": "POST without api key returns 401",
+      "method": "POST",
+      "headers": {"Content-Type": "application/json"},
+      "queryStringParameters": {},
+      "body": "{\"code\": \"0002\", \"quantity\": 5, \"price\": 55.5, \"station_code1c\": \"10-0001\"}",
+      "expectedStatus": 401
+    },
+    {
+      "name": "GET not allowed",
+      "method": "GET",
+      "headers": {},
+      "queryStringParameters": {},
+      "body": null,
+      "expectedStatus": 405
+    }
+  ]
+}
