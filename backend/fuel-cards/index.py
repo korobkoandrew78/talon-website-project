@@ -158,8 +158,9 @@ def create_balance_card_if_needed(cur, client_id: int, fuel_type_id: int):
 
 def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     '''Business: CRUD и спец-действия (block/unblock/topup/move/refuel) топливных карт для менеджера,
-    просмотр своих карт для клиента. В журнал fuel_card_operations фиксируются только
-    операции с движением топлива (topup/refuel/move_out/move_in).
+    просмотр своих карт для клиента. В журнал fuel_card_operations фиксируются операции с движением
+    топлива (topup/refuel/move_out/move_in), а также ручное изменение баланса менеджером через
+    редактирование карты (balance_edit) — с указанием менеджера и старого/нового значения баланса.
     Args: event с httpMethod, body, headers, queryStringParameters; context с request_id.
     Returns: HTTP JSON ответ со списком/объектом карты либо ошибкой.
     '''
@@ -638,6 +639,10 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             code = body_data.get('code')
             idx = body_data.get('idx')
 
+            cur.execute('SELECT balance FROM fuel_cards WHERE id = %s', (cid,))
+            before = cur.fetchone()
+            old_balance = float(before['balance']) if before else None
+
             cur.execute(
                 'UPDATE fuel_cards SET fuel_type_id=%s, client_id=%s, daily_limit=%s, balance=%s, price=%s, code=%s, idx=%s '
                 'WHERE id=%s RETURNING id, code, idx, fuel_type_id, client_id, balance, price, status, block_reason, daily_limit, activated_at, blocked_at',
@@ -646,6 +651,26 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             c = cur.fetchone()
             if not c:
                 return response(404, {'error': 'Карта не найдена'})
+
+            new_balance = float(c['balance'])
+            if old_balance is not None and round(old_balance, 3) != round(new_balance, 3):
+                cur.execute('SELECT full_name FROM managers WHERE id = %s', (session['user_id'],))
+                manager_row = cur.fetchone()
+                manager_name = manager_row['full_name'] if manager_row else 'менеджер'
+
+                fuel_info = get_fuel_info(cur, c['fuel_type_id'])
+                unit = unit_short(fuel_info['unit'])
+                client_name = get_client_name(cur, c['client_id'])
+                number = card_number_str(c['code'], c['idx'])
+                diff = round(new_balance - old_balance, 3)
+                comment = (
+                    f'Изменение баланса менеджером {manager_name}: '
+                    f'{old_balance:.3f} {unit} → {new_balance:.3f} {unit} ({"+" if diff >= 0 else ""}{diff:.3f} {unit})'
+                )
+                log_operation(
+                    cur, c['id'], number, c['client_id'], client_name, c['fuel_type_id'], fuel_info['name'],
+                    None, '', 'balance_edit', diff, None, None, comment,
+                )
 
             return response(200, card_row_to_json(c))
 

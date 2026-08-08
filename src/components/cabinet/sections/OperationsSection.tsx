@@ -15,6 +15,7 @@ const OPERATIONS: OperationType[] = [
   'refuel',
   'move_out',
   'move_in',
+  'balance_edit',
 ];
 
 const OPERATION_COLORS: Record<OperationType, string> = {
@@ -22,6 +23,7 @@ const OPERATION_COLORS: Record<OperationType, string> = {
   refuel: 'bg-accent/20 text-accent',
   move_out: 'bg-orange-500/15 text-orange-500',
   move_in: 'bg-primary/20 text-primary',
+  balance_edit: 'bg-sky-500/15 text-sky-500',
 };
 
 // Короткие подписи операций для отображения в таблице (в фильтре и экспорте — полные названия).
