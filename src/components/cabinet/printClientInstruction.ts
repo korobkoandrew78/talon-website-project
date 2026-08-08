@@ -1,4 +1,4 @@
-import { Client, ClientAccount, FuelCard, FuelType, cardNumber, unitShort } from '@/lib/cabinet';
+import { Client, ClientAccount, FuelCard, FuelType, cardNumber, unitShort, isBalanceCard } from '@/lib/cabinet';
 
 const SECTION_LABELS: Record<string, string> = {
   fuelCards: 'Топливные карты',
@@ -17,6 +17,11 @@ const fmtDate = (iso: string) => {
   return d.toLocaleDateString('ru-RU');
 };
 
+const ICON_CARD =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="20" height="14" x="2" y="5" rx="2"/><line x1="2" x2="22" y1="10" y2="10"/></svg>';
+const ICON_WALLET =
+  '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12V7H5a2 2 0 0 1 0-4h14v4"/><path d="M3 5v14a2 2 0 0 0 2 2h16v-5"/><path d="M18 12a2 2 0 0 0 0 4h4v-4Z"/></svg>';
+
 export const printClientInstruction = (
   client: Client,
   accounts: ClientAccount[],
@@ -27,16 +32,19 @@ export const printClientInstruction = (
   const fuelUnit = (id: string) => unitShort(fuelTypes.find((f) => f.id === id)?.unit ?? 'литр');
 
   const cardsRows = cards
-    .map(
-      (c) => `
+    .map((c) => {
+      const balanceCard = isBalanceCard(c);
+      const icon = balanceCard ? ICON_WALLET : ICON_CARD;
+      const label = balanceCard ? `${esc(cardNumber(c))} (балансная карта)` : esc(cardNumber(c));
+      return `
       <tr>
-        <td>${esc(cardNumber(c))}</td>
+        <td><span class="card-cell">${icon}${label}</span></td>
         <td>${esc(fuelName(c.fuelTypeId))}</td>
         <td>${c.dailyLimit ? `${c.dailyLimit} ${esc(fuelUnit(c.fuelTypeId))}/сутки` : '—'}</td>
         <td>${c.status === 'active' ? 'Активна' : 'Заблокирована'}</td>
         <td>${fmtDate(c.activatedAt)}</td>
-      </tr>`,
-    )
+      </tr>`;
+    })
     .join('');
 
   const accountsRows = accounts
@@ -67,6 +75,8 @@ export const printClientInstruction = (
   th, td { border: 1px solid #cfd8d2; padding: 8px 10px; text-align: left; }
   th { background: #eef3ef; font-weight: 600; }
   .req-table td:first-child { width: 220px; color: #5b6b60; }
+  .card-cell { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
+  .card-cell svg { flex-shrink: 0; color: #17402c; }
   .cred-box { display: inline-block; padding: 5px 12px; border: 2px solid #17402c; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 16px; font-weight: 700; letter-spacing: 0.03em; }
   .footer-note { margin-top: 28px; padding: 14px 16px; border-radius: 10px; background: #eef3ef; font-size: 13px; }
   .footer-note b { color: #17402c; }
