@@ -4,6 +4,10 @@ import Icon from '@/components/ui/icon';
 const LOGO =
   'https://cdn.poehali.dev/projects/cc75541e-6a4b-4243-9045-839da83c8672/bucket/288ee4f1-d06e-472f-b7f8-c10a8b03ae64.png';
 
+const HERO_IMG = 'https://cdn.poehali.dev/projects/cc75541e-6a4b-4243-9045-839da83c8672/files/23676ced-7750-4711-9bda-85e396300150.jpg';
+const CARDS_IMG = 'https://cdn.poehali.dev/projects/cc75541e-6a4b-4243-9045-839da83c8672/files/c6eaa25a-c3f5-49f1-ab77-423221e5ae14.jpg';
+const OPERATIONS_IMG = 'https://cdn.poehali.dev/projects/cc75541e-6a4b-4243-9045-839da83c8672/files/68a073ae-ebf6-4e53-ac32-542098d05d22.jpg';
+
 interface Section {
   id: string;
   icon: string;
@@ -11,6 +15,7 @@ interface Section {
   intro: string;
   points: string[];
   example?: { title: string; text: string };
+  image?: string;
 }
 
 const sections: Section[] = [
@@ -58,6 +63,7 @@ const sections: Section[] = [
       title: 'Пример',
       text: 'Карта 0001/1 с балансом 12 400 л АИ-92 и дневным лимитом 5 000 л — водитель не сможет заправить за сутки больше лимита, даже если на карте есть остаток.',
     },
+    image: CARDS_IMG,
   },
   {
     id: 'discountCards',
@@ -97,6 +103,7 @@ const sections: Section[] = [
       title: 'Пример',
       text: 'Чтобы проверить расход топлива за июль по одной карте — откройте «Фильтр», укажите даты 01.07–31.07 и номер карты, нажмите «Применить».',
     },
+    image: OPERATIONS_IMG,
   },
   {
     id: 'docs',
@@ -134,7 +141,8 @@ const ClientGuide = () => {
 
       <main className="mx-auto max-w-4xl px-5 py-12 md:px-8">
         <div className="mb-10 overflow-hidden rounded-2xl border border-border bg-card">
-          <div className="glow-scene p-8">
+          <img src={HERO_IMG} alt="Инструкция по личному кабинету клиента" className="h-56 w-full object-cover md:h-72" />
+          <div className="p-8">
             <div className="eyebrow mb-3">Инструкция</div>
             <h1 className="font-head text-3xl font-medium tracking-tight md:text-4xl">
               Личный кабинет клиента «Талан»
@@ -171,6 +179,9 @@ const ClientGuide = () => {
               id={s.id}
               className="scroll-mt-24 overflow-hidden rounded-2xl border border-border bg-card"
             >
+              {s.image && (
+                <img src={s.image} alt={s.title} className="h-48 w-full object-cover md:h-56" />
+              )}
               <div className="p-8">
                 <div className="flex items-center gap-3">
                   <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-secondary text-primary">
