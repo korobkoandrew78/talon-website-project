@@ -2,7 +2,9 @@ import { useMemo, useState } from 'react';
 import CabinetShell from '@/components/cabinet/CabinetShell';
 import Icon from '@/components/ui/icon';
 import { useAuthGuard } from '@/hooks/use-auth-guard';
+import { useStore } from '@/lib/store';
 import { ClientSection } from '@/lib/cabinet';
+import { printClientInstruction } from '@/components/cabinet/printClientInstruction';
 import FuelCardsSection from '@/components/cabinet/sections/FuelCardsSection';
 import DiscountCardsSection from '@/components/cabinet/sections/DiscountCardsSection';
 import CouponsSection from '@/components/cabinet/sections/CouponsSection';
@@ -28,6 +30,7 @@ interface ClientUser {
 
 const Client = () => {
   const { user: client, loading } = useAuthGuard<ClientUser>('client');
+  const { fuelCards, fuelTypes } = useStore();
 
   const available = useMemo(
     () => (client ? client.sections : []),
@@ -38,6 +41,15 @@ const Client = () => {
   const currentActive = active ?? available[0] ?? 'fuelCards';
 
   if (loading || !client) return null;
+
+  const printInstruction = () => {
+    printClientInstruction(
+      { id: client.id, inn: client.inn, name: client.name, phone: client.phone, email: client.email },
+      [{ id: '', clientId: client.id, login: client.login, password: '', readOnly, sections: available }],
+      fuelCards.filter((f) => f.clientId === client.id),
+      fuelTypes,
+    );
+  };
 
   const info = [
     { icon: 'Hash', label: 'ИНН', value: client.inn },
@@ -78,11 +90,20 @@ const Client = () => {
             </div>
           ))}
         </div>
-        {readOnly && (
-          <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
-            Режим «только просмотр»
-          </span>
-        )}
+        <div className="flex items-center gap-2">
+          {readOnly && (
+            <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+              Режим «только просмотр»
+            </span>
+          )}
+          <button
+            onClick={printInstruction}
+            className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+          >
+            <Icon name="Printer" size={15} />
+            Печать инструкции
+          </button>
+        </div>
       </div>
     </>
   );

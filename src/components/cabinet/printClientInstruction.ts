@@ -52,7 +52,7 @@ export const printClientInstruction = (
       (a) => `
       <tr>
         <td><span class="cred-box">${esc(a.login)}</span></td>
-        <td><span class="cred-box">${esc(a.password)}</span></td>
+        <td>${a.password ? `<span class="cred-box">${esc(a.password)}</span>` : '<span class="muted-note">указан при выдаче доступа</span>'}</td>
         <td>${a.readOnly ? 'Только просмотр' : 'Полный доступ'}</td>
         <td>${a.sections.map((s) => esc(SECTION_LABELS[s] ?? s)).join(', ') || '—'}</td>
       </tr>`,
@@ -77,6 +77,7 @@ export const printClientInstruction = (
   .req-table td:first-child { width: 220px; color: #5b6b60; }
   .card-cell { display: inline-flex; align-items: center; gap: 6px; font-weight: 600; }
   .card-cell svg { flex-shrink: 0; color: #17402c; }
+  .muted-note { color: #8a978f; font-size: 12px; font-style: italic; }
   .cred-box { display: inline-block; padding: 5px 12px; border: 2px solid #17402c; border-radius: 8px; font-family: 'Courier New', monospace; font-size: 16px; font-weight: 700; letter-spacing: 0.03em; }
   .footer-note { margin-top: 28px; padding: 14px 16px; border-radius: 10px; background: #eef3ef; font-size: 13px; }
   .footer-note b { color: #17402c; }
@@ -92,7 +93,7 @@ export const printClientInstruction = (
   <h2>1. Как попасть на сайт</h2>
   <p>Откройте в браузере адрес:</p>
   <div class="site-box">https://ooo-talan.ru</div>
-  <p>На главной странице нажмите «Вход в кабинет» и введите логин и пароль из раздела 3 этой инструкции.</p>
+  <p>На главной странице введите логин и пароль из раздела 3 этой инструкции и нажмите «Войти в личный кабинет».</p>
 
   <h2>2. Регистрационные данные клиента</h2>
   <table class="req-table">
