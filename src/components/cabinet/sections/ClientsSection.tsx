@@ -5,6 +5,7 @@ import Icon from '@/components/ui/icon';
 import { useStore } from '@/lib/store';
 import { ApiError } from '@/lib/api';
 import { Client, ClientAccount, ClientSection as CS } from '@/lib/cabinet';
+import { printClientInstruction } from '@/components/cabinet/printClientInstruction';
 import { usePagination } from '@/hooks/use-pagination';
 import DataPagination from '@/components/cabinet/DataPagination';
 import { Field, inputCls, SwitchRow } from '@/components/cabinet/Field';
@@ -46,6 +47,8 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
   const {
     clients,
     loadingClients,
+    fuelCards,
+    fuelTypes,
     createClient,
     updateClient,
     deleteClient,
@@ -61,6 +64,7 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
   const [formError, setFormError] = useState('');
   const [fInn, setFInn] = useState('');
   const [fName, setFName] = useState('');
+  const [printingId, setPrintingId] = useState('');
 
   const [accounts, setAccounts] = useState<ClientAccount[]>([]);
   const [accountsLoading, setAccountsLoading] = useState(false);
@@ -129,6 +133,19 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
       await deleteClient(id);
     } catch (e) {
       toast.error(e instanceof ApiError ? e.message : 'Не удалось удалить клиента');
+    }
+  };
+
+  const printInstruction = async (c: Client) => {
+    setPrintingId(c.id);
+    try {
+      const clientAccounts = await fetchClientAccounts(c.id);
+      const clientCards = fuelCards.filter((f) => f.clientId === c.id);
+      printClientInstruction(c, clientAccounts, clientCards, fuelTypes);
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Не удалось сформировать инструкцию');
+    } finally {
+      setPrintingId('');
     }
   };
 
@@ -221,6 +238,11 @@ const ClientsSection = ({ readOnly = false }: { readOnly?: boolean }) => {
                   {!readOnly && (
                     <td className="px-4 py-3">
                       <div className="flex justify-end gap-1.5">
+                        <RowAction
+                          icon={printingId === c.id ? 'Loader2' : 'Printer'}
+                          label="Печать инструкции пользователя"
+                          onClick={() => printInstruction(c)}
+                        />
                         <RowAction icon="Pencil" label="Изменить" onClick={() => edit(c)} />
                         <RowAction icon="Trash2" label="Удалить" danger onClick={() => remove(c.id)} />
                       </div>
