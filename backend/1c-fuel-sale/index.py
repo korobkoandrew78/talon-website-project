@@ -97,7 +97,8 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
     Принимает штрихкод EAN13 или код карты (плюс idx при неоднозначности), количество, цену, сумму
     и код 1С АЗС. Проверяет статус карты, баланс и дневной лимит, списывает топливо и создаёт запись
     в журнале операций с автогенерируемым комментарием. Возвращает результат: успех либо причину отказа
-    (карта не найдена, заблокирована, недостаточно топлива, превышен дневной лимит, АЗС не найдена).
+    с разными HTTP-кодами: 404 карта/АЗС не найдена, 409 неоднозначный код карты, 423 карта заблокирована,
+    402 недостаточно топлива, 429 превышен дневной лимит.
     Args: event с httpMethod, headers (X-Api-Key), body (JSON: barcode/code, idx, quantity, price, amount, station_code1c);
           context с request_id.
     Returns: HTTP JSON ответ с результатом операции.
@@ -182,14 +183,14 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
         card = candidates[0]
 
         if card['status'] != 'active':
-            return response(400, {
+            return response(423, {
                 'error': 'Карта заблокирована',
                 'result': 'card_blocked',
                 'blockReason': card['block_reason'] or '',
             })
 
         if float(card['balance']) < quantity:
-            return response(400, {
+            return response(402, {
                 'error': 'Недостаточно топлива на карте',
                 'result': 'insufficient_balance',
                 'balance': float(card['balance']),
@@ -207,7 +208,7 @@ def handler(event: Dict[str, Any], context: Any) -> Dict[str, Any]:
             spent = float(spent_row['spent']) if spent_row and spent_row['spent'] is not None else 0.0
             remaining = round(daily_limit - spent, 3)
             if quantity > remaining:
-                return response(400, {
+                return response(429, {
                     'error': 'Превышен дневной лимит',
                     'result': 'daily_limit_exceeded',
                     'dailyLimit': daily_limit,
