@@ -21,9 +21,11 @@ interface Props {
   children: ReactNode;
   topbar?: ReactNode;
   showGuide?: boolean;
+  guidePath?: string;
+  headerExtra?: ReactNode;
 }
 
-const CabinetShell = ({ role, nav, active, onNavigate, children, topbar, showGuide }: Props) => {
+const CabinetShell = ({ role, nav, active, onNavigate, children, topbar, showGuide, guidePath = '/guide', headerExtra }: Props) => {
   const navigate = useNavigate();
 
   return (
@@ -36,9 +38,10 @@ const CabinetShell = ({ role, nav, active, onNavigate, children, topbar, showGui
           <span className="eyebrow hidden sm:block">{role}</span>
         </div>
         <div className="flex items-center gap-2">
+          {headerExtra}
           {showGuide && (
             <button
-              onClick={() => navigate('/guide')}
+              onClick={() => navigate(guidePath)}
               className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
             >
               <Icon name="BookOpen" size={16} />

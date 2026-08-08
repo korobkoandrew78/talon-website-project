@@ -90,20 +90,11 @@ const Client = () => {
             </div>
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          {readOnly && (
-            <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
-              Режим «только просмотр»
-            </span>
-          )}
-          <button
-            onClick={printInstruction}
-            className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
-          >
-            <Icon name="Printer" size={15} />
-            Печать инструкции
-          </button>
-        </div>
+        {readOnly && (
+          <span className="rounded-full bg-secondary px-3 py-1 text-xs text-muted-foreground">
+            Режим «только просмотр»
+          </span>
+        )}
       </div>
     </>
   );
@@ -115,6 +106,17 @@ const Client = () => {
       active={currentActive}
       onNavigate={(k) => setActive(k as ClientSection)}
       topbar={topbar}
+      showGuide
+      guidePath="/client-guide"
+      headerExtra={
+        <button
+          onClick={printInstruction}
+          className="flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm transition-colors hover:bg-secondary"
+        >
+          <Icon name="IdCard" size={16} />
+          <span className="hidden sm:inline">Регистрационные данные</span>
+        </button>
+      }
     >
       {available.length === 0 ? (
         <p className="py-16 text-center text-muted-foreground">Нет доступных разделов</p>
